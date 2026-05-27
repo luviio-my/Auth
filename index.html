@@ -643,11 +643,11 @@
         </a>
         <!-- Desktop Nav Links -->
         <div class="hidden lg:flex items-center gap-1">
-          <a href="#/" class="nav-link spa-link text-[14px] px-3 py-2" data-route="">Home</a>
-          <a href="#/features" class="nav-link spa-link text-[14px] px-3 py-2" data-route="features">Features</a>
-          <a href="#/docs" class="nav-link spa-link text-[14px] px-3 py-2" data-route="docs">Docs</a>
-          <a href="#/pricing" class="nav-link spa-link text-[14px] px-3 py-2" data-route="pricing">Pricing</a>
-          <a href="#/status" class="nav-link spa-link text-[14px] px-3 py-2" data-route="status">Status</a>
+          <a href="/" class="nav-link spa-link text-[14px] px-3 py-2" data-route="">Home</a>
+          <a href="/features" class="nav-link spa-link text-[14px] px-3 py-2" data-route="features">Features</a>
+          <a href="/docs" class="nav-link spa-link text-[14px] px-3 py-2" data-route="docs">Docs</a>
+          <a href="/pricing" class="nav-link spa-link text-[14px] px-3 py-2" data-route="pricing">Pricing</a>
+          <a href="/status" class="nav-link spa-link text-[14px] px-3 py-2" data-route="status">Status</a>
         </div>
       </div>
       <!-- Desktop Right -->
@@ -832,48 +832,105 @@
       }
     }
 
-    // --- SPA Router Logic ---
-    const appContent = document.getElementById('app-content');
+// --- SPA Router Logic (Clean URLs) ---
+const appContent = document.getElementById('app-content');
 
-    const routes = {
-      '/': homePage,
-      '/features': featuresPage,
-      '/docs': docsPage,
-      '/pricing': pricingPage,
-      '/status': statusPage,
-      '/contact': contactPage,
-      '/login': loginPage,
-      '/signup': signupPage,
-      '/dashboard': dashboardPage,
-    };
+// Helper function for navigation
+function navigateTo(path) {
+  window.history.pushState({}, '', path);
+  router();
+}
 
-    function router() {
-      const hash = window.location.hash.slice(1) || '/';
-      
-      // Protect dashboard route
-      if (hash === '/dashboard' && !isAuthenticated()) {
-        window.location.hash = '#/login';
-        showToast('Please log in to access dashboard');
-        return;
-      }
-      
-      // Redirect logged in users away from login/signup
-      if ((hash === '/login' || hash === '/signup') && isAuthenticated()) {
-        window.location.hash = '#/dashboard';
-        return;
-      }
-      
-      const routeHandler = routes[hash] || notFoundPage;
-      
-      // Update active nav link
-      document.querySelectorAll('.nav-link').forEach(link => {
-        if (link.dataset.route === hash.replace('/', '')) {
-          link.classList.add('active');
-        } else {
-          link.classList.remove('active');
-        }
-      });
+const routes = {
+  '/': homePage,
+  '/features': featuresPage,
+  '/docs': docsPage,
+  '/pricing': pricingPage,
+  '/status': statusPage,
+  '/contact': contactPage,
+  '/login': loginPage,
+  '/signup': signupPage,
+  '/dashboard': dashboardPage,
+};
 
+function router() {
+  // Get clean path from URL
+  let path = window.location.pathname;
+  
+  // Normalize: ensure leading slash, remove trailing slash (except root)
+  if (!path.startsWith('/')) path = '/' + path;
+  if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+  
+  // Fallback to root if empty
+  if (path === '' || path === '/') path = '/';
+  
+  // Protect dashboard route
+  if (path === '/dashboard' && !isAuthenticated()) {
+    navigateTo('/login');
+    showToast('Please log in to access dashboard');
+    return;
+  }
+  
+  // Redirect logged in users away from login/signup
+  if ((path === '/login' || path === '/signup') && isAuthenticated()) {
+    navigateTo('/dashboard');
+    return;
+  }
+  
+  const routeHandler = routes[path] || notFoundPage;
+  
+  // Update active nav link
+  document.querySelectorAll('.nav-link').forEach(link => {
+    if (link.dataset.route === path.replace('/', '')) {
+      link.classList.add('active');
+    } else {
+      link.classList.remove('active');
+    }
+  });
+
+  closeMobileMenu();
+  updateNavForAuthState();
+
+  // Transition animation
+  appContent.classList.add('fading');
+  setTimeout(() => {
+    appContent.innerHTML = routeHandler();
+    appContent.classList.remove('fading');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    initPageScripts();
+  }, 250);
+}
+
+// Listen for browser back/forward buttons
+window.addEventListener('popstate', router);
+
+// Initialize on DOM ready
+window.addEventListener('DOMContentLoaded', () => {
+  // Convert old hash URLs to clean URLs (backward compatibility)
+  if (window.location.hash && window.location.hash.length > 1) {
+    const hashPath = window.location.hash.slice(1);
+    window.history.replaceState({}, '', hashPath);
+  }
+  
+  router();
+  updateNavForAuthState(); // Initial state
+});
+
+// Intercept all .spa-link clicks to use History API instead of page reload
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('.spa-link');
+  if (link && link.getAttribute('href')) {
+    e.preventDefault();
+    const href = link.getAttribute('href');
+    
+    // Only intercept internal links (starting with /)
+    if (href.startsWith('/') || href.startsWith('#/')) {
+      // Convert #/ style to / style if needed
+      const cleanPath = href.replace('#/', '/');
+      navigateTo(cleanPath);
+    }
+  }
+});
       closeMobileMenu();
       updateNavForAuthState();
 
@@ -885,7 +942,6 @@
         window.scrollTo({ top: 0, behavior: 'instant' });
         initPageScripts();
       }, 250);
-    }
 
     window.addEventListener('hashchange', router);
     window.addEventListener('DOMContentLoaded', () => {
@@ -993,7 +1049,7 @@
           
           // Redirect to dashboard after short delay
           setTimeout(() => {
-            window.location.hash = "#/dashboard";
+            window.location.hash = "/dashboard";
           }, 800);
           
         } else {
@@ -1017,7 +1073,7 @@
     function logout() {
       localStorage.removeItem("auth_user");
       showToast("Logged out successfully");
-      window.location.hash = "#/";
+      window.location.hash = "/";
     }
     
     function showVerificationStep(email, formContainer) {

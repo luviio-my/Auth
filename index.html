@@ -622,6 +622,86 @@
       background: rgba(255,255,255,0.04);
       border-color: rgba(255,255,255,0.12);
     }
+
+    /* Documentation specific styles */
+    .doc-section {
+      scroll-margin-top: 100px;
+    }
+    .doc-endpoint {
+      font-family: 'Geist Mono', monospace;
+      background: rgba(0,112,243,0.15);
+      border: 1px solid rgba(0,112,243,0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 13px;
+      color: #00D4FF;
+    }
+    .doc-method-get { color: #22c55e; }
+    .doc-method-post { color: #0070F3; }
+    .doc-method-put { color: #eab308; }
+    .doc-method-delete { color: #ef4444; }
+    
+    .doc-json {
+      font-family: 'Geist Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+    }
+    .doc-json .key { color: #7928CA; }
+    .doc-json .string { color: #95BF47; }
+    .doc-json .number { color: #00D4FF; }
+    .doc-json .bool { color: #EB367F; }
+    
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .doc-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .doc-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: #a1a1aa;
+    }
+    .doc-table tr:hover td {
+      background: rgba(255,255,255,0.02);
+    }
+    
+    .doc-note {
+      background: rgba(0,112,243,0.1);
+      border-left: 3px solid #0070F3;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    .doc-warning {
+      background: rgba(234,179,8,0.1);
+      border-left: 3px solid #eab308;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
+    .doc-error {
+      background: rgba(239,68,68,0.1);
+      border-left: 3px solid #ef4444;
+      padding: 12px 16px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+    }
   </style>
 </head>
 <body class="font-sans bg-surface text-text-secondary antialiased overflow-x-hidden">
@@ -757,6 +837,11 @@
     function getCurrentUser() {
       const user = localStorage.getItem("auth_user");
       return user ? JSON.parse(user) : null;
+    }
+    
+    function getAPIKey() {
+      const user = getCurrentUser();
+      return user ? user.apiKey || null : null;
     }
     
     function updateNavForAuthState() {
@@ -949,10 +1034,52 @@ document.addEventListener('click', (e) => {
       updateNavForAuthState(); // Initial state
     });
 
-    // --- Auth2U API Integration ---
+    // --- Auth2U API Integration (Updated per Documentation) ---
+    
+    // CREATE ACCOUNT - POST /account/create
+    async function createAccount(name, email, plan = 'starter') {
+      try {
+        const res = await fetch(AUTH_API + "/account/create", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, plan })
+        });
+        const data = await res.json();
+        
+        if (data.success && data.apiKey) {
+          // Save session with API key
+          localStorage.setItem(
+            "auth_user",
+            JSON.stringify({
+              email,
+              name,
+              apiKey: data.apiKey,
+              limit: data.limit,
+              loggedIn: true,
+              loginTime: Date.now()
+            })
+          );
+          showToast(`✅ Account created! Your API key: ${data.apiKey.substring(0, 12)}...`);
+          return data;
+        } else {
+          throw new Error(data.error || 'Failed to create account');
+        }
+      } catch (error) {
+        showToast(error.message || 'Network error');
+        throw error;
+      }
+    }
+    
+    // SEND OTP - POST /otp/send (Updated endpoint)
     async function sendOTP(email) {
       const form = document.getElementById('loginFormEmail') || document.getElementById('emailLoginForm');
       const btn = form?.querySelector('button[type="submit"]');
+      const apiKey = getAPIKey();
+      
+      if (!apiKey) {
+        showToast('Please log in or create an account first');
+        return;
+      }
       
       const resetButton = () => {
         if (btn) {
@@ -970,22 +1097,22 @@ document.addEventListener('click', (e) => {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-        const res = await fetch(AUTH_API + "/auth/email/send", {
+        const res = await fetch(AUTH_API + "/otp/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            email,
-            purpose: 'login'
-          }),
+          headers: { 
+            "Content-Type": "application/json",
+            "x-api-key": apiKey 
+          },
+          body: JSON.stringify({ email }),
           signal: controller.signal
         });
 
         clearTimeout(timeoutId);
         const data = await res.json();
         
-        if (!res.ok) throw new Error(data.message || data.error || 'Failed to send OTP');
+        if (!res.ok) throw new Error(data.error || data.message || 'Failed to send OTP');
         
-        showToast(`📧 Code sent to ${email}`);
+        showToast(`📧 OTP sent to ${email}`);
         showVerificationStep(email, form);
         return data;
         
@@ -1003,7 +1130,7 @@ document.addEventListener('click', (e) => {
       }
     }
     
-    // VERIFY OTP - Integrated from second HTML
+    // VERIFY OTP - POST /otp/verify (Updated endpoint)
     async function verifyOTP(email, otp) {
       const resultDiv = document.getElementById('result') || document.getElementById('otpResult');
       
@@ -1018,7 +1145,7 @@ document.addEventListener('click', (e) => {
 
       try {
         const res = await fetch(
-          AUTH_API + "/auth/email/verify",
+          AUTH_API + "/otp/verify",
           {
             method: "POST",
             headers: {
@@ -1035,13 +1162,13 @@ document.addEventListener('click', (e) => {
 
         if (data.success) {
           // SAVE SESSION - From second HTML
+          const currentUser = getCurrentUser();
           localStorage.setItem(
             "auth_user",
             JSON.stringify({
-              email,
-              loggedIn: true,
-              loginTime: Date.now(),
-              token: data.token || null
+              ...currentUser,
+              verified: true,
+              verifyTime: Date.now()
             })
           );
           
@@ -1053,7 +1180,7 @@ document.addEventListener('click', (e) => {
           }, 800);
           
         } else {
-          const errorMsg = data.message || "Invalid OTP code";
+          const errorMsg = data.error || "Invalid OTP code";
           if (resultDiv) resultDiv.innerText = errorMsg;
           showToast(errorMsg);
         }
@@ -1069,7 +1196,7 @@ document.addEventListener('click', (e) => {
       }
     }
     
-    // LOGOUT - From second HTML
+    // LOGOUT
     function logout() {
       localStorage.removeItem("auth_user");
       showToast("Logged out successfully");
@@ -1190,9 +1317,15 @@ document.addEventListener('click', (e) => {
                     </div>
                   </div>
                   <div class="px-6 py-5 text-left font-mono text-[13.5px] leading-[2] space-y-1">
-                    <div><span class="text-accent-purple">const</span> <span class="text-white">response</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">auth2u</span><span class="text-text-muted">.</span><span class="text-accent-cyan">otp</span><span class="text-text-muted">.</span><span class="text-yellow-400">sendEmail</span><span class="text-text-muted">({</span></div>
-                    <div class="pl-4"><span class="text-accent-cyan">email:</span> <span class="text-accent-lime">'user@example.com'</span><span class="text-text-muted">,</span></div>
-                    <div class="pl-4"><span class="text-accent-cyan">purpose:</span> <span class="text-accent-lime">'login'</span></div>
+                    <div><span class="text-accent-purple">const</span> <span class="text-white">response</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">fetch</span><span class="text-text-muted">(</span><span class="text-accent-lime">'${AUTH_API}/otp/send'</span><span class="text-text-muted">,</span> <span class="text-text-muted">{</span></div>
+                    <div class="pl-4"><span class="text-accent-cyan">method:</span> <span class="text-accent-lime">'POST'</span><span class="text-text-muted">,</span></div>
+                    <div class="pl-4"><span class="text-accent-cyan">headers:</span> <span class="text-text-muted">{</span></div>
+                    <div class="pl-8"><span class="text-accent-cyan">'x-api-key'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">apiKey</span><span class="text-text-muted">,</span></div>
+                    <div class="pl-8"><span class="text-accent-cyan">'Content-Type'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'application/json'</span></div>
+                    <div class="pl-4"><span class="text-text-muted">},</span></div>
+                    <div class="pl-4"><span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span><span class="text-text-muted">({</span></div>
+                    <div class="pl-8"><span class="text-accent-cyan">email:</span> <span class="text-accent-lime">'user@example.com'</span></div>
+                    <div class="pl-4"><span class="text-text-muted">})</span></div>
                     <div><span class="text-text-muted">});</span></div>
                     <div class="text-text-tertiary mt-2">// OTP sent successfully to user email</div>
                   </div>
@@ -1336,26 +1469,26 @@ document.addEventListener('click', (e) => {
               
               <div class="glass-card rounded-2xl p-6 text-center relative">
                 <div class="w-10 h-10 rounded-full bg-accent-purple/20 border border-accent-purple/30 flex items-center justify-center mx-auto mb-4 text-accent-purple font-bold text-sm">2</div>
-                <h3 class="text-[15px] font-semibold text-white mb-2">Create Project</h3>
-                <p class="text-[13px] text-text-secondary">Set up your application</p>
-              </div>
-              
-              <div class="glass-card rounded-2xl p-6 text-center relative">
-                <div class="w-10 h-10 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center mx-auto mb-4 text-accent-cyan font-bold text-sm">3</div>
                 <h3 class="text-[15px] font-semibold text-white mb-2">Get API Key</h3>
                 <p class="text-[13px] text-text-secondary">Generate secure credentials</p>
               </div>
               
               <div class="glass-card rounded-2xl p-6 text-center relative">
+                <div class="w-10 h-10 rounded-full bg-accent-cyan/20 border border-accent-cyan/30 flex items-center justify-center mx-auto mb-4 text-accent-cyan font-bold text-sm">3</div>
+                <h3 class="text-[15px] font-semibold text-white mb-2">Send OTP</h3>
+                <p class="text-[13px] text-text-secondary">Call our REST API</p>
+              </div>
+              
+              <div class="glass-card rounded-2xl p-6 text-center relative">
                 <div class="w-10 h-10 rounded-full bg-accent-magenta/20 border border-accent-magenta/30 flex items-center justify-center mx-auto mb-4 text-accent-magenta font-bold text-sm">4</div>
-                <h3 class="text-[15px] font-semibold text-white mb-2">Integrate API</h3>
-                <p class="text-[13px] text-text-secondary">Copy our code examples</p>
+                <h3 class="text-[15px] font-semibold text-white mb-2">Verify User</h3>
+                <p class="text-[13px] text-text-secondary">Confirm the OTP code</p>
               </div>
               
               <div class="glass-card rounded-2xl p-6 text-center relative">
                 <div class="w-10 h-10 rounded-full bg-accent-lime/20 border border-accent-lime/30 flex items-center justify-center mx-auto mb-4 text-accent-lime font-bold text-sm">5</div>
-                <h3 class="text-[15px] font-semibold text-white mb-2">Authenticate Users</h3>
-                <p class="text-[13px] text-text-secondary">Go live instantly</p>
+                <h3 class="text-[15px] font-semibold text-white mb-2">Done!</h3>
+                <p class="text-[13px] text-text-secondary">User authenticated securely</p>
               </div>
             </div>
           </div>
@@ -1376,8 +1509,17 @@ document.addEventListener('click', (e) => {
                       <span class="iconify text-accent-blue" data-icon="lucide:check" data-width="12"></span>
                     </div>
                     <div>
+                      <h4 class="text-[14px] font-medium text-white mb-1">Create Account & Get API Key</h4>
+                      <p class="text-[13px] text-text-secondary">Sign up and receive your unique x-api-key credential</p>
+                    </div>
+                  </div>
+                  <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 rounded-full bg-accent-blue/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span class="iconify text-accent-blue" data-icon="lucide:check" data-width="12"></span>
+                    </div>
+                    <div>
                       <h4 class="text-[14px] font-medium text-white mb-1">Send OTP Endpoint</h4>
-                      <p class="text-[13px] text-text-secondary">POST /api/v1/otp/send with email or phone number</p>
+                      <p class="text-[13px] text-text-secondary">POST /otp/send with your API key and user email</p>
                     </div>
                   </div>
                   <div class="flex items-start gap-3">
@@ -1386,7 +1528,7 @@ document.addEventListener('click', (e) => {
                     </div>
                     <div>
                       <h4 class="text-[14px] font-medium text-white mb-1">Verify OTP Endpoint</h4>
-                      <p class="text-[13px] text-text-secondary">POST /api/v1/otp/verify returns JWT token on success</p>
+                      <p class="text-[13px] text-text-secondary">POST /otp/verify returns success confirmation</p>
                     </div>
                   </div>
                   <div class="flex items-start gap-3">
@@ -1395,7 +1537,7 @@ document.addEventListener('click', (e) => {
                     </div>
                     <div>
                       <h4 class="text-[14px] font-medium text-white mb-1">SDK Support</h4>
-                      <p class="text-[13px] text-text-secondary">JavaScript, Node.js, Python, PHP, and Go SDKs available</p>
+                      <p class="text-[13px] text-text-secondary">JavaScript, Node.js, Python, PHP, React, and more</p>
                     </div>
                   </div>
                 </div>
@@ -1411,25 +1553,28 @@ document.addEventListener('click', (e) => {
                 <div class="p-5 font-mono text-[12.5px] leading-[1.9] space-y-3">
                   <div class="text-text-tertiary">// Step 1: Send OTP</div>
                   <div><span class="text-accent-purple">const</span> <span class="text-white">sendResult</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">fetch</span><span class="text-text-muted">(</span></div>
-                  <div class="pl-4"><span class="text-accent-lime">'https://api.auth2u.com/v1/otp/send'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-4"><span class="text-accent-lime">'${AUTH_API}/otp/send'</span><span class="text-text-muted">,</span></div>
                   <div class="pl-4"><span class="text-text-muted">{</span></div>
                   <div class="pl-8"><span class="text-accent-cyan">method:</span> <span class="text-accent-lime">'POST'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-8"><span class="text-accent-cyan">headers:</span> <span class="text-text-muted">{</span> <span class="text-accent-cyan">Authorization:</span> <span class="text-accent-lime">\`Bearer \${API_KEY}\`</span> <span class="text-text-muted">},</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">headers:</span> <span class="text-text-muted">{</span></div>
+                  <div class="pl-12"><span class="text-accent-cyan">'Content-Type'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'application/json'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-12"><span class="text-accent-cyan">'x-api-key'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">\`YOUR_API_KEY\`</span></div>
+                  <div class="pl-8"><span class="text-text-muted">},</span></div>
                   <div class="pl-8"><span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span><span class="text-text-muted">({</span></div>
-                  <div class="pl-12"><span class="text-accent-cyan">email:</span> <span class="text-accent-lime">'user@email.com'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-12"><span class="text-accent-cyan">type:</span> <span class="text-accent-lime">'email_otp'</span></div>
+                  <div class="pl-12"><span class="text-accent-cyan">email:</span> <span class="text-accent-lime">'user@email.com'</span></div>
                   <div class="pl-8"><span class="text-text-muted">})</span></div>
                   <div><span class="text-text-muted">});</span></div>
                   
                   <div class="text-text-tertiary mt-4">// Step 2: Verify OTP</div>
                   <div><span class="text-accent-purple">const</span> <span class="text-white">verifyResult</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">fetch</span><span class="text-text-muted">(</span></div>
-                  <div class="pl-4"><span class="text-accent-lime">'https://api.auth2u.com/v1/otp/verify'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-4"><span class="text-accent-lime">'${AUTH_API}/otp/verify'</span><span class="text-text-muted">,</span></div>
                   <div class="pl-4"><span class="text-text-muted">{</span></div>
                   <div class="pl-8"><span class="text-accent-cyan">method:</span> <span class="text-accent-lime">'POST'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-8"><span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span><span class="text-text-muted">({</span> <span class="text-accent-cyan">code:</span> <span class="text-accent-lime">'123456'</span> <span class="text-text-muted">})</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">headers:</span> <span class="text-text-muted">{</span> <span class="text-accent-cyan">'Content-Type'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'application/json'</span> <span class="text-text-muted">},</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span><span class="text-text-muted">({</span> <span class="text-accent-cyan">email</span><span class="text-text-muted">,</span> <span class="text-accent-cyan">otp</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'123456'</span> <span class="text-text-muted">})</span></div>
                   <div><span class="text-text-muted">});</span></div>
                   
-                  <div class="text-accent-lime mt-2">// Returns JWT token for authenticated user</div>
+                  <div class="text-accent-lime mt-2">// Returns { success: true, message: "OTP verified" }</div>
                 </div>
               </div>
             </div>
@@ -1446,12 +1591,11 @@ document.addEventListener('click', (e) => {
             
             <div class="grid md:grid-cols-3 gap-6">
               <div class="glass-card rounded-2xl p-7 text-center">
-                <h3 class="text-[18px] font-semibold text-white mb-2">Free</h3>
-                <div class="text-[32px] font-bold text-white mb-1">RM0</div>
-                <div class="text-[13px] text-text-secondary mb-6">Forever free</div>
+                <h3 class="text-[18px] font-semibold text-white mb-2">Starter</h3>
+                <div class="text-[32px] font-bold text-white mb-1">5K<span class="text-[16px] text-text-secondary font-normal"> req/mo</span></div>
+                <div class="text-[13px] text-text-secondary mb-6">Perfect for testing</div>
                 <ul class="space-y-3 text-left text-[13px] text-text-secondary mb-6">
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span> 100 OTP requests/month</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span> 1 Project</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span> 5,000 requests/month</li>
                   <li class="flex items-center gap-2"><span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span> Email OTP only</li>
                   <li class="flex items-center gap-2"><span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span> Basic analytics</li>
                 </ul>
@@ -1461,29 +1605,25 @@ document.addEventListener('click', (e) => {
               <div class="glass-card rounded-2xl p-7 text-center border-accent-blue/30 relative overflow-hidden">
                 <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-accent-blue to-transparent"></div>
                 <div class="text-[11px] uppercase tracking-wider text-accent-blue font-semibold mb-2">Popular</div>
-                <h3 class="text-[18px] font-semibold text-white mb-2">Starter</h3>
-                <div class="text-[32px] font-bold text-white mb-1">RM99<span class="text-[16px] text-text-secondary font-normal">/mo</span></div>
-                <div class="text-[13px] text-text-secondary mb-6">Billed monthly</div>
+                <h3 class="text-[18px] font-semibold text-white mb-2">Pro</h3>
+                <div class="text-[32px] font-bold text-white mb-1">50K<span class="text-[16px] text-text-secondary font-normal"> req/mo</span></div>
+                <div class="text-[13px] text-text-secondary mb-6">For growing apps</div>
                 <ul class="space-y-3 text-left text-[13px] text-text-secondary mb-6">
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> 5,000 OTP requests/month</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> Multiple projects</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> 50,000 requests/month</li>
                   <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> Email + SMS OTP</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> Magic links</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> Email support</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-blue" data-icon="lucide:check" data-width="14"></span> Priority support</li>
                 </ul>
                 <a href="#/signup" class="spa-link block w-full btn-primary text-center text-[13px] py-2.5 rounded-xl">Start Trial</a>
               </div>
               
               <div class="glass-card rounded-2xl p-7 text-center">
-                <h3 class="text-[18px] font-semibold text-white mb-2">Pro</h3>
-                <div class="text-[32px] font-bold text-white mb-1">RM299<span class="text-[16px] text-text-secondary font-normal">/mo</span></div>
-                <div class="text-[13px] text-text-secondary mb-6">For growing teams</div>
+                <h3 class="text-[18px] font-semibold text-white mb-2">Enterprise</h3>
+                <div class="text-[32px] font-bold text-white mb-1">1M+<span class="text-[16px] text-text-secondary font-normal"> req/mo</span></div>
+                <div class="text-[13px] text-text-secondary mb-6">Custom limits</div>
                 <ul class="space-y-3 text-left text-[13px] text-text-secondary mb-6">
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Unlimited OTP requests</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Dedicated sender ID</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Priority support</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Audit logs</li>
-                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Team access</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Unlimited requests</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> Dedicated support</li>
+                  <li class="flex items-center gap-2"><span class="iconify text-accent-purple" data-icon="lucide:check" data-width="14"></span> SLA guarantee</li>
                 </ul>
                 <a href="#/contact" class="spa-link block w-full btn-glass text-center text-[13px] py-2.5 rounded-xl">Contact Sales</a>
               </div>
@@ -1522,7 +1662,7 @@ document.addEventListener('click', (e) => {
                   <span class="iconify text-text-muted faq-icon transition-transform" data-icon="lucide:plus" data-width="18"></span>
                 </div>
                 <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300">
-                  <p class="text-[14px] text-text-secondary mt-3 leading-relaxed">Yes! Our Free plan includes 100 OTP requests per month with Email OTP support. Perfect for testing and small projects.</p>
+                  <p class="text-[14px] text-text-secondary mt-3 leading-relaxed">Yes! Our Starter plan includes 5,000 OTP requests per month with Email OTP support. Perfect for testing and small projects.</p>
                 </div>
               </div>
               
@@ -1618,7 +1758,7 @@ document.addEventListener('click', (e) => {
                     </div>
                     <div>
                       <h4 class="text-[15px] font-medium text-white mb-1">Expiration Controls</h4>
-                      <p class="text-[14px] text-text-secondary">Configurable TTL from 1 minute to 24 hours</p>
+                      <p class="text-[14px] text-text-secondary">Configurable TTL from 1 minute to 24 hours (default: 5 minutes)</p>
                     </div>
                   </div>
                   <div class="flex items-start gap-3">
@@ -1637,236 +1777,117 @@ document.addEventListener('click', (e) => {
                   <span class="text-[12px] text-text-muted font-mono">email-otp-example.js</span>
                 </div>
                 <div class="p-5 font-mono text-[12.5px] leading-[1.9] space-y-2">
-                  <div><span class="text-accent-purple">const</span> <span class="text-white">result</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">auth2u</span><span class="text-text-muted">.</span><span class="text-accent-cyan">emailOTP</span><span class="text-text-muted">.</span><span class="text-yellow-400">send</span><span class="text-text-muted">({</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">to:</span> <span class="text-accent-lime">'user@example.com'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">subject:</span> <span class="text-accent-lime">'Your verification code'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">expiresIn:</span> <span class="text-accent-purple">300</span><span class="text-text-muted">,</span> <span class="text-text-tertiary">// 5 minutes</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">length:</span> <span class="text-accent-purple">6</span></div>
+                  <div><span class="text-accent-purple">const</span> <span class="text-white">result</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">fetch</span><span class="text-text-muted">(</span><span class="text-accent-lime">'${AUTH_API}/otp/send'</span><span class="text-text-muted">,</span> <span class="text-text-muted">{</span></div>
+                  <div class="pl-4"><span class="text-accent-cyan">method:</span> <span class="text-accent-lime">'POST'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-4"><span class="text-accent-cyan">headers:</span> <span class="text-text-muted">{</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">'Content-Type'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'application/json'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">'x-api-key'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">YOUR_API_KEY</span></div>
+                  <div class="pl-4"><span class="text-text-muted">},</span></div>
+                  <div class="pl-4"><span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span><span class="text-text-muted">({</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">to:</span> <span class="text-accent-lime">'user@example.com'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">subject:</span> <span class="text-accent-lime">'Your verification code'</span><span class="text-text-muted">,</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">expiresIn:</span> <span class="text-accent-purple">300</span><span class="text-text-muted">,</span> <span class="text-text-tertiary">// 5 minutes</span></div>
+                  <div class="pl-8"><span class="text-accent-cyan">length:</span> <span class="text-accent-purple">6</span></div>
                   <div><span class="text-text-muted">});</span></div>
                 </div>
               </div>
             </div>
 
-            <!-- SMS OTP Section -->
-            <div class="grid lg:grid-cols-2 gap-12 items-center mb-24">
-              <div class="order-2 lg:order-1 code-block rounded-2xl overflow-hidden shadow-2xl">
-                <div class="flex items-center gap-2 px-5 py-4 border-b border-white/5 bg-black/30">
-                  <span class="text-[12px] text-text-muted font-mono">sms-otp-example.js</span>
+            <!-- More Features Grid -->
+            <section class="py-24 bg-surface-raised/30">
+              <div class="max-w-[1200px] mx-auto px-6">
+                <div class="text-center mb-16">
+                  <h2 class="text-[32px] md:text-[40px] font-semibold tracking-tight text-white mb-4">More Powerful Features</h2>
+                  <p class="text-[16px] text-text-secondary">Everything you need for production-ready authentication</p>
                 </div>
-                <div class="p-5 font-mono text-[12.5px] leading-[1.9] space-y-2">
-                  <div><span class="text-accent-purple">const</span> <span class="text-white">result</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">auth2u</span><span class="text-text-muted">.</span><span class="text-accent-cyan">smsOTP</span><span class="text-text-muted">.</span><span class="text-yellow-400">send</span><span class="text-text-muted">({</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">phone:</span> <span class="text-accent-lime">'+60123456789'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">countryCode:</span> <span class="text-accent-lime">'MY'</span><span class="text-text-muted">,</span></div>
-                  <div class="pl-4"><span class="text-accent-cyan">senderId:</span> <span class="text-accent-lime">'MyApp'</span></div>
-                  <div><span class="text-text-muted">});</span></div>
-                </div>
-              </div>
-              <div class="order-1 lg:order-2">
-                <div class="inline-flex items-center gap-2 text-accent-lime text-[13px] font-medium mb-4 uppercase tracking-wider">
-                  <span class="iconify" data-icon="lucide:smartphone" data-width="16"></span>
-                  SMS OTP Authentication
-                </div>
-                <h2 class="text-[32px] font-semibold tracking-tight text-white mb-6">Malaysia Local SMS Routing</h2>
-                <p class="text-[16px] leading-relaxed text-text-secondary mb-8">Direct connections to Malaysian telecom providers ensure fast, reliable SMS delivery to +60 numbers.</p>
                 
-                <div class="space-y-4">
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-lime/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span>
+                <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <!-- Project Management -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5">
+                      <span class="iconify text-accent-blue" data-icon="lucide:folder-kanban" data-width="22"></span>
                     </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Malaysia Mobile Support</h4>
-                      <p class="text-[14px] text-text-secondary">Full support for Maxis, Celcom, Digi, U Mobile, and other MY carriers</p>
-                    </div>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Simple Setup</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Create account in seconds</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Get instant API key</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>No credit card required</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Start sending OTPs immediately</li>
+                    </ul>
                   </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-lime/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span>
-                    </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Reliable Delivery</h4>
-                      <p class="text-[14px] text-text-secondary">99.9% delivery rate with automatic retry logic</p>
-                    </div>
-                  </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-lime/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span>
-                    </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Verification Workflows</h4>
-                      <p class="text-[14px] text-text-secondary">Built-in phone number validation and formatting</p>
-                    </div>
-                  </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-lime/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-lime" data-icon="lucide:check" data-width="14"></span>
-                    </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Local SMS Routing</h4>
-                      <p class="text-[14px] text-text-secondary">No international gateway delays - direct local routing</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            <!-- Magic Link Section -->
-            <div class="grid lg:grid-cols-2 gap-12 items-center mb-24">
-              <div>
-                <div class="inline-flex items-center gap-2 text-accent-magenta text-[13px] font-medium mb-4 uppercase tracking-wider">
-                  <span class="iconify" data-icon="lucide:link" data-width="16"></span>
-                  Magic Link Authentication
-                </div>
-                <h2 class="text-[32px] font-semibold tracking-tight text-white mb-6">Passwordless Sign-In Links</h2>
-                <p class="text-[16px] leading-relaxed text-text-secondary mb-8">Send secure, one-time login links that expire after use. The most frictionless way to authenticate users.</p>
-                
-                <div class="space-y-4">
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-magenta/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-magenta" data-icon="lucide:check" data-width="14"></span>
+                  <!-- API Keys -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(149,191,71,0.2), rgba(0,212,255,0.2));">
+                      <span class="iconify text-accent-lime" data-icon="lucide:key-round" data-width="22"></span>
                     </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">No Codes to Type</h4>
-                      <p class="text-[14px] text-text-secondary">Users just click the link - no manual code entry required</p>
-                    </div>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Secure API Keys</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>x-api-key header auth</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Unique key per account</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Usage-based rate limiting</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Plan-based request quotas</li>
+                    </ul>
                   </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-magenta/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-magenta" data-icon="lucide:check" data-width="14"></span>
+
+                  <!-- Analytics Dashboard -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(121,40,202,0.2), rgba(235,54,127,0.2));">
+                      <span class="iconify text-accent-purple" data-icon="lucide:line-chart" data-width="22"></span>
                     </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Secure Login Links</h4>
-                      <p class="text-[14px] text-text-secondary">Cryptographically signed tokens that can't be forged</p>
-                    </div>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Usage Tracking</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Request count per month</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Remaining quota alerts</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Delivery statistics</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Real-time status updates</li>
+                    </ul>
                   </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-magenta/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-magenta" data-icon="lucide:check" data-width="14"></span>
+
+                  <!-- Security -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(235,54,127,0.2), rgba(234,179,8,0.2));">
+                      <span class="iconify text-accent-magenta" data-icon="lucide:shield-check" data-width="22"></span>
                     </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Custom Expiration</h4>
-                      <p class="text-[14px] text-text-secondary">Set link validity from 5 minutes to 7 days</p>
-                    </div>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Enterprise Security</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>Cloudflare-powered global CDN</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>AES-256 encryption at rest</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>Automatic rate limiting</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>OTP single-use enforcement</li>
+                    </ul>
                   </div>
-                  <div class="flex items-start gap-3">
-                    <div class="w-6 h-6 rounded-md bg-accent-magenta/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span class="iconify text-accent-magenta" data-icon="lucide:check" data-width="14"></span>
+
+                  <!-- Developer Experience -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,112,243,0.2));">
+                      <span class="iconify text-accent-cyan" data-icon="lucide:code-2" data-width="22"></span>
                     </div>
-                    <div>
-                      <h4 class="text-[15px] font-medium text-white mb-1">Single-Use Only</h4>
-                      <p class="text-[14px] text-text-secondary">Links automatically invalidate after first use</p>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Developer Experience</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>Clean RESTful API design</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>JSON request/response format</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>CORS enabled for browsers</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>Comprehensive error messages</li>
+                    </ul>
+                  </div>
+
+                  <!-- Infrastructure -->
+                  <div class="glass-card rounded-2xl p-7 group">
+                    <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(149,191,71,0.2), rgba(121,40,202,0.2));">
+                      <span class="iconify text-accent-lime" data-icon="lucide:server" data-width="22"></span>
                     </div>
+                    <h3 class="text-[18px] font-semibold text-white mb-3">Infrastructure</h3>
+                    <ul class="space-y-2 text-[14px] text-text-secondary">
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Cloudflare Workers edge network</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Firebase Realtime Database</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Resend Email API integration</li>
+                      <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Global edge delivery</li>
+                    </ul>
                   </div>
                 </div>
               </div>
-              <div class="glass-card rounded-2xl p-8 flex flex-col items-center justify-center min-h-[300px]">
-                <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-magenta/20 to-accent-purple/20 flex items-center justify-center mb-6">
-                  <span class="iconify text-accent-magenta" data-icon="lucide:link" data-width="28"></span>
-                </div>
-                <div class="text-center">
-                  <p class="text-[14px] text-text-secondary mb-2">User receives email with magic link</p>
-                  <div class="bg-black/40 rounded-lg px-4 py-2 font-mono text-[12px] text-accent-cyan break-all">
-                    https://auth.app/verify?token=eyJhbGciOi...
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- More Features Grid -->
-        <section class="py-24 bg-surface-raised/30">
-          <div class="max-w-[1200px] mx-auto px-6">
-            <div class="text-center mb-16">
-              <h2 class="text-[32px] md:text-[40px] font-semibold tracking-tight text-white mb-4">More Powerful Features</h2>
-              <p class="text-[16px] text-text-secondary">Everything you need for production-ready authentication</p>
-            </div>
-            
-            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <!-- Project Management -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5">
-                  <span class="iconify text-accent-blue" data-icon="lucide:folder-kanban" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">Project Management</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Multiple projects per account</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Separate dev/staging/prod environments</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Team member invitations</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-blue/50"></span>Role-based access control</li>
-                </ul>
-              </div>
-
-              <!-- API Keys -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(149,191,71,0.2), rgba(0,212,255,0.2));">
-                  <span class="iconify text-accent-lime" data-icon="lucide:key-round" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">API Keys</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Secure credential management</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>One-click key rotation</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Scoping permissions</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Usage-based rate limiting</li>
-                </ul>
-              </div>
-
-              <!-- Analytics Dashboard -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(121,40,202,0.2), rgba(235,54,127,0.2));">
-                  <span class="iconify text-accent-purple" data-icon="lucide:line-chart" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">Analytics Dashboard</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Real-time OTP usage metrics</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Verification success rates</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Delivery statistics by channel</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-purple/50"></span>Exportable reports</li>
-                </ul>
-              </div>
-
-              <!-- Security -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(235,54,127,0.2), rgba(234,179,8,0.2));">
-                  <span class="iconify text-accent-magenta" data-icon="lucide:shield-check" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">Security</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>JWT token generation</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>AES-256 encryption at rest</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>Automatic rate limiting</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-magenta/50"></span>Complete audit logs</li>
-                </ul>
-              </div>
-
-              <!-- Developer Experience -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,112,243,0.2));">
-                  <span class="iconify text-accent-cyan" data-icon="lucide:code-2" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">Developer Experience</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>RESTful API design</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>Official SDKs (JS, Node, Python)</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>Webhook notifications</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-cyan/50"></span>Interactive API playground</li>
-                </ul>
-              </div>
-
-              <!-- Webhooks -->
-              <div class="glass-card rounded-2xl p-7 group">
-                <div class="feature-icon w-12 h-12 rounded-xl flex items-center justify-center mb-5" style="background: linear-gradient(135deg, rgba(149,191,71,0.2), rgba(121,40,202,0.2));">
-                  <span class="iconify text-accent-lime" data-icon="lucide:webhook" data-width="22"></span>
-                </div>
-                <h3 class="text-[18px] font-semibold text-white mb-3">Webhooks</h3>
-                <ul class="space-y-2 text-[14px] text-text-secondary">
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Verification events</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Delivery status updates</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>Retry mechanism built-in</li>
-                  <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-accent-lime/50"></span>HMAC signature verification</li>
-                </ul>
-              </div>
-            </div>
+            </section>
           </div>
         </section>
 
@@ -1889,13 +1910,13 @@ document.addEventListener('click', (e) => {
                 Get started quickly with our comprehensive guides and API references.
               </p>
               
-              <!-- Search -->
-              <div class="max-w-[520px] mx-auto relative animate-fade-up delay-3 mb-16">
-                <div class="glass rounded-xl p-1.5 flex items-center gap-2 border-white/10 focus-within:border-accent-blue/50 focus-within:shadow-[0_0_20px_rgba(0,112,243,0.15)] transition-all duration-300">
-                  <span class="iconify text-text-muted ml-3" data-icon="lucide:search" data-width="18" data-height="18"></span>
-                  <input type="text" placeholder="Search documentation..." class="flex-1 bg-transparent border-none outline-none text-[14px] text-white placeholder-text-muted py-2.5">
-                  <kbd class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 text-[11px] text-text-muted border border-white/5 mr-1">⌘K</kbd>
-                </div>
+              <!-- Base URL Badge -->
+              <div class="inline-flex items-center gap-3 glass rounded-xl px-5 py-3 mb-10 border-white/10 animate-fade-up delay-3">
+                <span class="text-[12px] text-text-muted font-medium">Base URL:</span>
+                <code class="text-[13px] text-accent-cyan font-mono bg-black/40 px-3 py-1 rounded">${AUTH_API}</code>
+                <button onclick="navigator.clipboard.writeText('${AUTH_API}'); showToast('Copied!')" class="text-text-muted hover:text-white transition-colors">
+                  <span class="iconify" data-icon="lucide:copy" data-width="14"></span>
+                </button>
               </div>
             </div>
 
@@ -1906,50 +1927,31 @@ document.addEventListener('click', (e) => {
                 <nav class="space-y-1">
                   <div class="docs-nav-section">
                     <div class="docs-nav-title">Getting Started</div>
-                    <a href="#" class="docs-nav-item active">Introduction</a>
-                    <a href="#" class="docs-nav-item">Quick Start Guide</a>
-                    <a href="#" class="docs-nav-item">Authentication Overview</a>
+                    <a href="#overview" class="docs-nav-item active">Overview</a>
+                    <a href="#authentication" class="docs-nav-item">Authentication</a>
+                    <a href="#response-format" class="docs-nav-item">Response Format</a>
                   </div>
                   
                   <div class="docs-nav-section">
-                    <div class="docs-nav-title">Email OTP</div>
-                    <a href="#" class="docs-nav-item">Send Email OTP</a>
-                    <a href="#" class="docs-nav-item">Verify Email OTP</a>
-                    <a href="#" class="docs-nav-item">Email Templates</a>
+                    <div class="docs-nav-title">API Endpoints</div>
+                    <a href="#create-account" class="docs-nav-item">Create Account</a>
+                    <a href="#send-otp" class="docs-nav-item">Send OTP</a>
+                    <a href="#verify-otp" class="docs-nav-item">Verify OTP</a>
                   </div>
                   
                   <div class="docs-nav-section">
-                    <div class="docs-nav-title">SMS OTP</div>
-                    <a href="#" class="docs-nav-item">Send SMS OTP</a>
-                    <a href="#" class="docs-nav-item">Verify SMS OTP</a>
-                    <a href="#" class="docs-nav-item">Supported Countries</a>
+                    <div class="docs-nav-title">Examples</div>
+                    <a href="#js-example" class="docs-nav-item">JavaScript</a>
+                    <a href="#react-example" class="docs-nav-item">React</a>
+                    <a href="#curl-example" class="docs-nav-item">cURL</a>
                   </div>
                   
                   <div class="docs-nav-section">
-                    <div class="docs-nav-title">Magic Link</div>
-                    <a href="#" class="docs-nav-item">Generate Magic Link</a>
-                    <a href="#" class="docs-nav-item">Verify Magic Link</a>
-                  </div>
-                  
-                  <div class="docs-nav-section">
-                    <div class="docs-nav-title">Projects</div>
-                    <a href="#" class="docs-nav-item">Create Project</a>
-                    <a href="#" class="docs-nav-item">Manage Settings</a>
-                  </div>
-                  
-                  <div class="docs-nav-section">
-                    <div class="docs-nav-title">API Keys</div>
-                    <a href="#" class="docs-nav-item">Create API Key</a>
-                    <a href="#" class="docs-nav-item">Rotate Key</a>
-                    <a href="#" class="docs-nav-item">Delete Key</a>
-                  </div>
-                  
-                  <div class="docs-nav-section">
-                    <div class="docs-nav-title">Advanced</div>
-                    <a href="#" class="docs-nav-item">Rate Limits</a>
-                    <a href="#" class="docs-nav-item">Error Responses</a>
-                    <a href="#" class="docs-nav-item">Webhooks</a>
-                    <a href="#" class="docs-nav-item">SDK Reference</a>
+                    <div class="docs-nav-title">Reference</div>
+                    <a href="#plans" class="docs-nav-item">Plans & Limits</a>
+                    <a href="#errors" class="docs-nav-item">Error Codes</a>
+                    <a href="#security" class="docs-nav-item">Security</a>
+                    <a href="#rate-limits" class="docs-nav-item">Rate Limits</a>
                   </div>
                   
                   <div class="docs-nav-section">
@@ -1963,103 +1965,842 @@ document.addEventListener('click', (e) => {
               <!-- Main Content Area -->
               <main class="min-w-0">
                 <article class="prose prose-invert max-w-none">
-                  <div class="glass-card rounded-2xl p-8 md:p-10 mb-8">
-                    <h2 class="text-[28px] font-semibold text-white mb-4">Introduction to Auth2U</h2>
+                  
+                  <!-- OVERVIEW SECTION -->
+                  <div id="overview" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                        <span class="iconify text-accent-blue" data-icon="lucide:book-open" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Overview</h2>
+                    </div>
+                    
                     <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
-                      Auth2U is a modern authentication API platform designed for Malaysian applications. We provide secure, scalable authentication services including Email OTP, SMS OTP, and Magic Link authentication.
+                      Auth2U is a developer authentication infrastructure API built for modern applications.
                     </p>
                     
-                    <div class="bg-accent-blue/10 border border-accent-blue/20 rounded-xl p-5 mb-6">
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Using Auth2U, developers can:
+                    </p>
+                    
+                    <ul class="space-y-3 mb-8">
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle" data-width="18"></span>
+                        <span class="text-[14px] text-text-secondary">Send OTP verification emails</span>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle" data-width="18"></span>
+                        <span class="text-[14px] text-text-secondary">Verify one-time passwords securely</span>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle" data-width="18"></span>
+                        <span class="text-[14px] text-text-secondary">Authenticate users using a simple REST API</span>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle" data-width="18"></span>
+                        <span class="text-[14px] text-text-secondary">Manage authentication flows without building backend infrastructure from scratch</span>
+                      </li>
+                    </ul>
+
+                    <div class="doc-note">
                       <div class="flex items-start gap-3">
-                        <span class="iconify text-accent-blue mt-0.5" data-icon="lucide:info" data-width="20"></span>
+                        <span class="iconify text-accent-blue mt-0.5 flex-shrink-0" data-icon="lucide:info" data-width="18"></span>
                         <div>
-                          <h4 class="text-[14px] font-medium text-white mb-1">Base URL</h4>
-                          <code class="text-[13px] text-accent-cyan bg-black/30 px-2 py-1 rounded">https://api.auth2u.com/v1</code>
+                          <h4 class="text-[14px] font-medium text-white mb-1">Base API URL</h4>
+                          <code class="text-[13px] text-accent-cyan bg-black/30 px-2 py-1 rounded font-mono">${AUTH_API}</code>
                         </div>
                       </div>
                     </div>
 
-                    <h3 class="text-[20px] font-semibold text-white mt-8 mb-4">Authentication Methods</h3>
-                    <div class="grid md:grid-cols-3 gap-4 mb-8">
-                      <div class="bg-white/[0.03] rounded-xl p-5 border border-white/5">
-                        <div class="w-10 h-10 rounded-lg bg-accent-blue/20 flex items-center justify-center mb-3">
-                          <span class="iconify text-accent-blue" data-icon="lucide:mail" data-width="18"></span>
+                    <h3 class="text-[20px] font-semibold text-white mt-8 mb-4">Features</h3>
+                    <div class="grid md:grid-cols-2 gap-4">
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-blue" data-icon="lucide:shield" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">Secure OTP email authentication</span>
                         </div>
-                        <h4 class="text-[15px] font-medium text-white mb-1">Email OTP</h4>
-                        <p class="text-[13px] text-text-secondary">One-time codes via email</p>
+                        <p class="text-[12px] text-text-muted">Industry-standard security practices</p>
                       </div>
-                      <div class="bg-white/[0.03] rounded-xl p-5 border border-white/5">
-                        <div class="w-10 h-10 rounded-lg bg-accent-lime/20 flex items-center justify-center mb-3">
-                          <span class="iconify text-accent-lime" data-icon="lucide:smartphone" data-width="18"></span>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-lime" data-icon="lucide:key" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">API key based authentication</span>
                         </div>
-                        <h4 class="text-[15px] font-medium text-white mb-1">SMS OTP</h4>
-                        <p class="text-[13px] text-text-secondary">SMS codes to mobile phones</p>
+                        <p class="text-[12px] text-text-muted">Simple header-based auth</p>
                       </div>
-                      <div class="bg-white/[0.03] rounded-xl p-5 border border-white/5">
-                        <div class="w-10 h-10 rounded-lg bg-accent-magenta/20 flex items-center justify-center mb-3">
-                          <span class="iconify text-accent-magenta" data-icon="lucide:link" data-width="18"></span>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-cyan" data-icon="lucide:globe" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">Cloudflare-powered global infrastructure</span>
                         </div>
-                        <h4 class="text-[15px] font-medium text-white mb-1">Magic Link</h4>
-                        <p class="text-[13px] text-text-secondary">Passwordless login links</p>
+                        <p class="text-[12px] text-text-muted">Fast edge delivery worldwide</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-purple" data-icon="lucide:smartphone" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">Mobile-friendly email templates</span>
+                        </div>
+                        <p class="text-[12px] text-text-muted">Responsive design included</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-magenta" data-icon="lucide:bar-chart-2" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">Usage tracking and request limits</span>
+                        </div>
+                        <p class="text-[12px] text-text-muted">Monitor your quota in real-time</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5">
+                        <div class="flex items-center gap-2 mb-2">
+                          <span class="iconify text-accent-lime" data-icon="lucide:zap" data-width="16"></span>
+                          <span class="text-[13px] font-medium text-white">Fast REST API integration</span>
+                        </div>
+                        <p class="text-[12px] text-text-muted">Get started in minutes</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- AUTHENTICATION SECTION -->
+                  <div id="authentication" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-purple/20 flex items-center justify-center">
+                        <span class="iconify text-accent-purple" data-icon="lucide:lock" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Authentication</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      All protected endpoints require an API key.
+                    </p>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Your API key is generated when creating an Auth2U account.
+                    </p>
+
+                    <div class="doc-note mb-6">
+                      <p class="text-[14px] text-white font-medium mb-2">Example API Key Format</p>
+                      <code class="text-[14px] text-accent-cyan bg-black/40 px-3 py-2 rounded font-mono inline-block">auth2u_live_xxxxxxxxxxxxxxxxx</code>
+                    </div>
+
+                    <div class="doc-warning mb-6">
+                      <div class="flex items-start gap-3">
+                        <span class="iconify text-yellow-400 mt-0.5 flex-shrink-0" data-icon="lucide:alert-triangle" data-width="18"></span>
+                        <div>
+                          <p class="text-[14px] text-white font-medium mb-2">Keep your API key private.</p>
+                          <p class="text-[13px] text-text-secondary leading-relaxed">Do NOT expose your API key in frontend applications, public repositories, mobile apps, or client-side JavaScript.</p>
+                        </div>
                       </div>
                     </div>
 
-                    <h3 class="text-[20px] font-semibold text-white mt-8 mb-4">Quick Start</h3>
-                    <ol class="space-y-4 text-[14px] text-text-secondary list-decimal list-inside mb-6">
-                      <li><strong class="text-white">Create Account</strong> — Sign up at auth2u.com for free</li>
-                      <li><strong class="text-white">Create Project</strong> — Set up a new project in the dashboard</li>
-                      <li><strong class="text-white">Get API Key</strong> — Generate your secret API key</li>
-                      <li><strong class="text-white">Make Request</strong> — Send your first OTP using our API</li>
-                    </ol>
-
-                    <div class="code-block rounded-xl overflow-hidden mt-6">
-                      <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5 bg-black/30">
-                        <span class="text-[11px] text-text-muted font-mono">curl example</span>
-                      </div>
-                      <pre class="p-4 font-mono text-[12.5px] leading-[1.8] overflow-x-auto text-text-secondary"><code><span class="text-accent-purple">curl</span> -X POST https://api.auth2u.com/v1/otp/send \\
-  -H <span class="text-accent-lime">"Authorization: Bearer YOUR_API_KEY"</span> \\
-  -H <span class="text-accent-lime">"Content-Type: application/json"</span> \\
-  -d <span class="text-accent-lime">'{"email": "user@example.com", "type": "email_otp"}'</span></code></pre>
+                    <h3 class="text-[18px] font-semibold text-white mt-8 mb-4">Header Format</h3>
+                    <div class="doc-json">
+<pre><span class="text-text-muted">x-api-key:</span> <span class="string">auth2u_live_xxxxxxxxxxxxxxxxx</span>
+<span class="text-text-muted">Content-Type:</span> <span class="string">application/json</span></pre>
                     </div>
                   </div>
 
-                  <!-- API Endpoints Table -->
-                  <div class="glass-card rounded-2xl p-8 md:p-10">
-                    <h3 class="text-[20px] font-semibold text-white mb-6">Core API Endpoints</h3>
-                    <div class="overflow-x-auto">
-                      <table class="w-full text-[14px]">
-                        <thead>
-                          <tr class="border-b border-white/10">
-                            <th class="text-left py-3 px-4 text-text-muted font-medium">Method</th>
-                            <th class="text-left py-3 px-4 text-text-muted font-medium">Endpoint</th>
-                            <th class="text-left py-3 px-4 text-text-muted font-medium">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody class="text-text-secondary">
-                          <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                            <td class="py-3 px-4"><span class="text-accent-lime font-mono text-xs bg-accent-lime/10 px-2 py-1 rounded">POST</span></td>
-                            <td class="py-3 px-4 font-mono text-accent-cyan text-xs">/v1/otp/send</td>
-                            <td class="py-3 px-4">Send OTP (email/SMS)</td>
-                          </tr>
-                          <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                            <td class="py-3 px-4"><span class="text-accent-blue font-mono text-xs bg-accent-blue/10 px-2 py-1 rounded">POST</span></td>
-                            <td class="py-3 px-4 font-mono text-accent-cyan text-xs">/v1/otp/verify</td>
-                            <td class="py-3 px-4">Verify OTP code</td>
-                          </tr>
-                          <tr class="border-b border-white/5 hover:bg-white/[0.02]">
-                            <td class="py-3 px-4"><span class="text-accent-lime font-mono text-xs bg-accent-lime/10 px-2 py-1 rounded">POST</span></td>
-                            <td class="py-3 px-4 font-mono text-accent-cyan text-xs">/v1/magic-link/send</td>
-                            <td class="py-3 px-4">Generate magic link</td>
-                          </tr>
-                          <tr class="hover:bg-white/[0.02]">
-                            <td class="py-3 px-4"><span class="text-accent-blue font-mono text-xs bg-accent-blue/10 px-2 py-1 rounded">GET</span></td>
-                            <td class="py-3 px-4 font-mono text-accent-cyan text-xs">/v1/magic-link/verify</td>
-                            <td class="py-3 px-4">Verify magic link token</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                  <!-- RESPONSE FORMAT SECTION -->
+                  <div id="response-format" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-cyan/20 flex items-center justify-center">
+                        <span class="iconify text-accent-cyan" data-icon="lucide:file-json" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Response Format</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      All API responses are returned in JSON format.
+                    </p>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Success Response</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"message"</span>: <span class="string">"OTP sent"</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Error Response</h3>
+                    <div class="doc-json">
+<pre>{
+  <span class="key">"error"</span>: <span class="string">"Invalid API key"</span>
+}</pre>
                     </div>
                   </div>
+
+                  <!-- CREATE ACCOUNT SECTION -->
+                  <div id="create-account" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-lime/20 flex items-center justify-center">
+                        <span class="iconify text-accent-lime" data-icon="lucide:user-plus" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">1. Create Account</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Create a new Auth2U developer account to receive your API key.
+                    </p>
+
+                    <div class="mb-6">
+                      <div class="flex items-center gap-3 mb-3">
+                        <span class="doc-endpoint doc-method-post">POST</span>
+                        <span class="doc-endpoint">/account/create</span>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Request Body</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"name"</span>: <span class="string">"Danial"</span>,
+  <span class="key">"email"</span>: <span class="string">"danial@luviio.com"</span>,
+  <span class="key">"plan"</span>: <span class="string">"starter"</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Available Plans</h3>
+                    <table class="doc-table mb-6">
+                      <thead>
+                        <tr>
+                          <th>Plan</th>
+                          <th>Monthly Limit</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong class="text-white">starter</strong></td>
+                          <td>5,000 requests</td>
+                        </tr>
+                        <tr>
+                          <td><strong class="text-white">pro</strong></td>
+                          <td>50,000 requests</td>
+                        </tr>
+                        <tr>
+                          <td><strong class="text-white">enterprise</strong></td>
+                          <td>1,000,000 requests</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">cURL Example</h3>
+                    <div class="code-block rounded-xl overflow-hidden mb-6">
+                      <div class="p-4 font-mono text-[12px] leading-[1.8] overflow-x-auto text-text-secondary">
+<pre><span class="text-accent-purple">curl</span> -X POST ${AUTH_API}/account/create \\
+-H <span class="text-accent-lime">"Content-Type: application/json"</span> \\
+-d <span class="text-accent-lime">'{
+  "name": "Danial",
+  "email": "danial@luviio.com",
+  "plan": "starter"
+}'</span></pre>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Success Response</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"apiKey"</span>: <span class="string">"auth2u_live_xxxxxxxxx"</span>,
+  <span class="key">"limit"</span>: <span class="number">5000</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Error Responses</h3>
+                    
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">Missing fields</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"Missing fields"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">User already exists</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"User exists"</span> }</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SEND OTP SECTION -->
+                  <div id="send-otp" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                        <span class="iconify text-accent-blue" data-icon="lucide:send" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">2. Send OTP</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Send a one-time password to a user's email address.
+                    </p>
+
+                    <div class="mb-6">
+                      <div class="flex items-center gap-3 mb-3">
+                        <span class="doc-endpoint doc-method-post">POST</span>
+                        <span class="doc-endpoint">/otp/send</span>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Headers</h3>
+                    <div class="doc-json mb-6">
+<pre><span class="text-text-muted">Content-Type:</span> <span class="string">application/json</span>
+<span class="text-text-muted">x-api-key:</span> <span class="string">YOUR_API_KEY</span></pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Request Body</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"email"</span>: <span class="string">"danial@luviio.com"</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">cURL Example</h3>
+                    <div class="code-block rounded-xl overflow-hidden mb-6">
+                      <div class="p-4 font-mono text-[12px] leading-[1.8] overflow-x-auto text-text-secondary">
+<pre><span class="text-accent-purple">curl</span> -X POST ${AUTH_API}/otp/send \\
+-H <span class="text-accent-lime">"Content-Type: application/json"</span> \\
+-H <span class="text-accent-lime">"x-api-key: auth2u_live_xxxxxxxxx"</span> \\
+-d <span class="text-accent-lime">'{"email": "danial@luviio.com"}'</span></pre>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Success Response</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"message"</span>: <span class="string">"OTP sent"</span>,
+  <span class="key">"used"</span>: <span class="number">1</span>,
+  <span class="key">"limit"</span>: <span class="number">5000</span>,
+  <span class="key">"expiresIn"</span>: <span class="number">300</span>
+}</pre>
+                    </div>
+
+                    <div class="doc-note mb-6">
+                      <p class="text-[13px] text-text-secondary"><strong class="text-white">expiresIn</strong> shows the OTP validity period in seconds (default: 300 = 5 minutes)</p>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Error Responses</h3>
+                    
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">Missing API key or email</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"Missing API key or email"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">Invalid API key</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"Invalid API key"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">Usage limit reached</p>
+                        <div class="doc-error">
+<pre>{ <span class="key">"error"</span>: <span class="string">"Usage limit reached"</span> }</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- VERIFY OTP SECTION -->
+                  <div id="verify-otp" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-magenta/20 flex items-center justify-center">
+                        <span class="iconify text-accent-magenta" data-icon="lucide:check-circle" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">3. Verify OTP</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Verify a one-time password submitted by the user.
+                    </p>
+
+                    <div class="mb-6">
+                      <div class="flex items-center gap-3 mb-3">
+                        <span class="doc-endpoint doc-method-post">POST</span>
+                        <span class="doc-endpoint">/otp/verify</span>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Headers</h3>
+                    <div class="doc-json mb-6">
+<pre><span class="text-text-muted">Content-Type:</span> <span class="string">application/json</span></pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Request Body</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"email"</span>: <span class="string">"danial@luviio.com"</span>,
+  <span class="key">"otp"</span>: <span class="string">"123456"</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">cURL Example</h3>
+                    <div class="code-block rounded-xl overflow-hidden mb-6">
+                      <div class="p-4 font-mono text-[12px] leading-[1.8] overflow-x-auto text-text-secondary">
+<pre><span class="text-accent-purple">curl</span> -X POST ${AUTH_API}/otp/verify \\
+-H <span class="text-accent-lime">"Content-Type: application/json"</span> \\
+-d <span class="text-accent-lime">'{
+  "email": "danial@luviio.com",
+  "otp": "123456"
+}'</span></pre>
+                      </div>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Success Response</h3>
+                    <div class="doc-json mb-6">
+<pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"message"</span>: <span class="string">"OTP verified"</span>
+}</pre>
+                    </div>
+
+                    <h3 class="text-[18px] font-semibold text-white mt-6 mb-4">Error Responses</h3>
+                    
+                    <div class="space-y-4">
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">Invalid OTP</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"Invalid OTP"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">OTP expired</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"OTP expired"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">OTP already used</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"OTP already used"</span> }</pre>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <p class="text-[13px] text-text-muted mb-2 font-medium">No OTP found</p>
+                        <div class="doc-json">
+<pre>{ <span class="key">"error"</span>: <span class="string">"No OTP found"</span> }</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- JAVASCRIPT EXAMPLE -->
+                  <div id="js-example" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-yellow-400/20 flex items-center justify-center">
+                        <span class="iconify text-yellow-400" data-icon="lucide:code" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">JavaScript Example</h2>
+                    </div>
+                    
+                    <div class="code-block rounded-xl overflow-hidden">
+                      <div class="flex items-center gap-2 px-5 py-4 border-b border-white/5 bg-black/30">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                        <span class="text-[12px] text-text-muted ml-3 font-mono">send-otp.js</span>
+                      </div>
+                      <div class="p-5 font-mono text-[12.5px] leading-[1.9] overflow-x-auto">
+<pre><span class="text-accent-purple">async function</span> <span class="text-yellow-400">sendOTP</span>(<span class="text-accent-cyan">email</span>) {
+  <span class="text-accent-purple">const</span> <span class="text-white">response</span> <span class="text-text-muted">=</span> <span class="text-text-muted">await</span> <span class="text-accent-blue">fetch</span>(<span class="text-accent-lime">"${AUTH_API}/otp/send"</span>, {
+    <span class="text-accent-cyan">method:</span> <span class="text-accent-lime">"POST"</span>,
+    <span class="text-accent-cyan">headers:</span> {
+      <span class="text-accent-lime">"Content-Type"</span><span class="text-text-muted">:</span> <span class="text-accent-lime">"application/json"</span>,
+      <span class="text-accent-lime">"x-api-key"</span><span class="text-text-muted">:</span> <span class="text-accent-lime">"YOUR_API_KEY"</span>
+    },
+    <span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span>({ <span class="text-accent-cyan">email</span> })
+  })
+
+  <span class="text-accent-purple">return await</span> <span class="text-white">response</span><span class="text-text-muted">.</span><span class="text-yellow-400">json</span>()
+}</pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- REACT EXAMPLE -->
+                  <div id="react-example" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-[#61DAFB]/20 flex items-center justify-center">
+                        <span class="iconify text-[#61DAFB]" data-icon="simple-icons:react" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">React Example</h2>
+                    </div>
+                    
+                    <div class="code-block rounded-xl overflow-hidden">
+                      <div class="flex items-center gap-2 px-5 py-4 border-b border-white/5 bg-black/30">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                        <span class="text-[12px] text-text-muted ml-3 font-mono">AuthComponent.jsx</span>
+                      </div>
+                      <div class="p-5 font-mono text-[12.5px] leading-[1.9] overflow-x-auto">
+<pre><span class="text-text-muted">import { useState } from</span> <span class="text-accent-lime">'react'</span>
+
+<span class="text-accent-purple">const</span> [<span class="text-white">email</span>, <span class="text-white">setEmail</span>] = <span class="text-yellow-400">useState</span>(<span class="text-accent-lime">''</span>)
+<span class="text-accent-purple">const</span> [<span class="text-white">loading</span>, <span class="text-white">setLoading</span>] = <span class="text-yellow-400">useState</span>(<span class="bool">false</span>)
+
+<span class="text-accent-purple">const</span> <span class="text-yellow-400">sendOTP</span> = <span class="text-accent-purple">async</span> () => {
+  <span class="text-yellow-400">setLoading</span>(<span class="bool">true</span>)
+  
+  <span class="text-accent-purple">const</span> <span class="text-white">response</span> = <span class="text-accent-purple">await</span> <span class="text-accent-blue">fetch</span>(<span class="text-accent-lime">'${AUTH_API}/otp/send'</span>, {
+    <span class="text-accent-cyan">method:</span> <span class="text-accent-lime">'POST'</span>,
+    <span class="text-accent-cyan">headers:</span> {
+      <span class="text-accent-lime">'Content-Type'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'application/json'</span>,
+      <span class="text-accent-lime">'x-api-key'</span><span class="text-text-muted">:</span> <span class="text-accent-lime">'YOUR_API_KEY'</span>
+    },
+    <span class="text-accent-cyan">body:</span> <span class="text-accent-blue">JSON</span><span class="text-text-muted">.</span><span class="text-yellow-400">stringify</span>({
+      <span class="text-accent-cyan">email:</span> <span class="text-white">email</span>
+    })
+  })
+
+  <span class="text-accent-purple">const</span> <span class="text-white">data</span> = <span class="text-accent-purple">await</span> <span class="text-white">response</span><span class="text-text-muted">.</span><span class="text-yellow-400">json</span>()
+  <span class="text-text-muted">console.</span><span class="text-yellow-400">log</span>(<span class="text-white">data</span>) <span class="text-text-tertiary">// { success: true, message: "OTP sent" }</span>
+  
+  <span class="text-yellow-400">setLoading</span>(<span class="bool">false</span>)
+}
+
+<span class="text-text-muted">return (</span>
+  <span class="text-text-muted">&lt;</span><span class="text-white">form</span> <span class="text-accent-cyan">onSubmit</span><span class="text-text-muted">=</span>{<span class="text-white">sendOTP</span>}<span class="text-text-muted">&gt;</span>
+    <span class="text-text-muted">&lt;</span><span class="text-white">input</span>
+      <span class="text-accent-cyan">type</span><span class="text-text-muted">=</span><span class="text-accent-lime">"email"</span>
+      <span class="text-accent-cyan">value</span><span class="text-text-muted">=</span>{<span class="text-white">email</span>}
+      <span class="text-accent-cyan">onChange</span><span class="text-text-muted">=</span>{(<span class="text-accent-cyan">e</span>) => <span class="text-yellow-400">setEmail</span>(<span class="text-accent-cyan">e</span>.target.value)}
+      <span class="text-accent-cyan">placeholder</span><span class="text-text-muted">=</span><span class="text-accent-lime">"user@example.com"</span>
+    <span class="text-text-muted">/&gt;</span>
+    <span class="text-text-muted">&lt;</span><span class="text-white">button</span> <span class="text-accent-cyan">type</span><span class="text-text-muted">=</span><span class="text-accent-lime">"submit"</span> <span class="text-accent-cyan">disabled</span><span class="text-text-muted">=</span>{<span class="text-white">loading</span>}<span class="text-text-muted">&gt;</span>
+      {<span class="text-white">loading</span> ? <span class="text-accent-lime">'Sending...'</span> : <span class="text-accent-lime">'Send OTP'</span>}
+    <span class="text-text-muted">&lt;/</span><span class="text-white">button</span><span class="text-text-muted">&gt;</span>
+  <span class="text-text-muted">&lt;/</span><span class="text-white">form</span><span class="text-text-muted">&gt;</span>
+<span class="text-text-muted">)</span></pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PLANS & LIMITS -->
+                  <div id="plans" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-magenta/20 flex items-center justify-center">
+                        <span class="iconify text-accent-magenta" data-icon="lucide:credit-card" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Plans & Limits</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Each account has monthly request limits based on its selected plan.
+                    </p>
+
+                    <table class="doc-table mb-6">
+                      <thead>
+                        <tr>
+                          <th>Plan</th>
+                          <th>Monthly Requests</th>
+                          <th>Best For</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><strong class="text-white">starter</strong></td>
+                          <td>5,000</td>
+                          <td>Side projects & testing</td>
+                        </tr>
+                        <tr>
+                          <td><strong class="text-white">pro</strong></td>
+                          <td>50,000</td>
+                          <td>Growing applications</td>
+                        </tr>
+                        <tr>
+                          <td><strong class="text-white">enterprise</strong></td>
+                          <td>1,000,000+</td>
+                          <td>Large scale businesses</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div class="doc-note">
+                      <p class="text-[14px] text-text-secondary">
+                        Exceeding your quota will return: <code class="text-red-400 bg-black/30 px-1.5 py-0.5 rounded text-xs">{ "error": "Usage limit reached" }</code>
+                      </p>
+                    </div>
+                  </div>
+
+                  <!-- ERROR CODES -->
+                  <div id="errors" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                        <span class="iconify text-red-400" data-icon="lucide:alert-circle" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Error Codes</h2>
+                    </div>
+                    
+                    <table class="doc-table">
+                      <thead>
+                        <tr>
+                          <th>Error Message</th>
+                          <th>Cause</th>
+                          <th>Solution</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">Missing fields</code></td>
+                          <td>Required fields not provided</td>
+                          <td>Check request body includes all required fields</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">User exists</code></td>
+                          <td>Email already registered</td>
+                          <td>Use existing account or different email</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">Missing API key or email</code></td>
+                          <td>Header or body missing</td>
+                          <td>Include x-api-key header and email in body</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">Invalid API key</code></td>
+                          <td>API key not recognized</td>
+                          <td>Verify your API key is correct</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">Usage limit reached</code></td>
+                          <td>Monthly quota exceeded</td>
+                          <td>Upgrade plan or wait for reset</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">Invalid OTP</code></td>
+                          <td>Wrong verification code</td>
+                          <td>User should re-enter code carefully</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">OTP expired</code></td>
+                          <td>Code older than 5 minutes</td>
+                          <td>Request new OTP</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">OTP already used</code></td>
+                          <td>Code already verified</td>
+                          <td>Request new OTP</td>
+                        </tr>
+                        <tr>
+                          <td><code class="text-red-400 text-xs">No OTP found</code></td>
+                          <td>No pending OTP for email</td>
+                          <td>Send OTP first before verifying</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- SECURITY -->
+                  <div id="security" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-lime/20 flex items-center justify-center">
+                        <span class="iconify text-accent-lime" data-icon="lucide:shield-check" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Security Recommendations</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      For production applications:
+                    </p>
+
+                    <ul class="space-y-4">
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Store API keys securely on your backend</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Never commit keys to version control</p>
+                        </div>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Never expose API keys publicly</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Keep them server-side only</p>
+                        </div>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Implement server-side validation</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Validate inputs before sending to API</p>
+                        </div>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Use HTTPS only</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Always encrypt API calls</p>
+                        </div>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Do not log OTP codes</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Treat codes as sensitive data</p>
+                        </div>
+                      </li>
+                      <li class="flex items-start gap-3">
+                        <span class="iconify text-accent-lime mt-1 flex-shrink-0" data-icon="lucide:check-circle-2" data-width="18"></span>
+                        <div>
+                          <strong class="text-white text-[14px]">Rotate compromised API keys immediately</strong>
+                          <p class="text-[13px] text-text-muted mt-1">Contact support if key is exposed</p>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <!-- RATE LIMITS & EXPIRATION -->
+                  <div id="rate-limits" class="doc-section glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-blue/20 flex items-center justify-center">
+                        <span class="iconify text-accent-blue" data-icon="lucide:clock" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Rate Limits & Expiration</h2>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6">
+                      <div class="bg-white/[0.03] rounded-xl p-6 border border-white/5">
+                        <h3 class="text-[16px] font-semibold text-white mb-4 flex items-center gap-2">
+                          <span class="iconify text-accent-cyan" data-icon="lucide:timer" data-width="18"></span>
+                          OTP Expiration
+                        </h3>
+                        <ul class="space-y-3 text-[14px] text-text-secondary">
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Expire after <strong class="text-white">5 minutes</strong></span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Can only be used <strong class="text-white">once</strong></span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Automatically invalidated after verification</span>
+                          </li>
+                        </ul>
+                      </div>
+
+                      <div class="bg-white/[0.03] rounded-xl p-6 border border-white/5">
+                        <h3 class="text-[16px] font-semibold text-white mb-4 flex items-center gap-2">
+                          <span class="iconify text-accent-purple" data-icon="lucide:gauge" data-width="18"></span>
+                          Rate Limits
+                        </h3>
+                        <ul class="space-y-3 text-[14px] text-text-secondary">
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Limited by <strong class="text-white">monthly plan quota</strong></span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Resets at start of billing cycle</span>
+                          </li>
+                          <li class="flex items-start gap-2">
+                            <span class="text-accent-lime mt-1">•</span>
+                            <span>Returns error when exceeded</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div class="mt-6 doc-note">
+                      <div class="flex items-start gap-3">
+                        <span class="iconify text-accent-blue mt-0.5 flex-shrink-0" data-icon="lucide:info" data-width="18"></span>
+                        <div>
+                          <h4 class="text-[14px] font-medium text-white mb-1">CORS Support</h4>
+                          <p class="text-[13px] text-text-secondary leading-relaxed">Auth2U supports CORS for browser integrations. Allowed methods: GET, POST, OPTIONS</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- ARCHITECTURE -->
+                  <div class="glass-card rounded-2xl p-8 md:p-10 mb-8">
+                    <div class="flex items-center gap-3 mb-6">
+                      <div class="w-10 h-10 rounded-xl bg-accent-cyan/20 flex items-center justify-center">
+                        <span class="iconify text-accent-cyan" data-icon="lucide:server" data-width="20"></span>
+                      </div>
+                      <h2 class="text-[28px] font-semibold text-white m-0">Architecture</h2>
+                    </div>
+                    
+                    <p class="text-[15px] text-text-secondary leading-relaxed mb-6">
+                      Auth2U infrastructure is powered by enterprise-grade technologies:
+                    </p>
+
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 text-center">
+                        <div class="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center mx-auto mb-3">
+                          <span class="iconify text-orange-400" data-icon="simple-icons:cloudflare" data-width="24"></span>
+                        </div>
+                        <p class="text-[13px] font-medium text-white">Cloudflare Workers</p>
+                        <p class="text-[11px] text-text-muted mt-1">Edge computing</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 text-center">
+                        <div class="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center mx-auto mb-3">
+                          <span class="iconify text-yellow-400" data-icon="simple-icons:firebase" data-width="24"></span>
+                        </div>
+                        <p class="text-[13px] font-medium text-white">Firebase Realtime DB</p>
+                        <p class="text-[11px] text-text-muted mt-1">Data storage</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 text-center">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mx-auto mb-3">
+                          <span class="iconify text-purple-400" data-icon="lucide:mail" data-width="24"></span>
+                        </div>
+                        <p class="text-[13px] font-medium text-white">Resend Email API</p>
+                        <p class="text-[11px] text-text-muted mt-1">Email delivery</p>
+                      </div>
+                      <div class="bg-white/[0.03] rounded-xl p-4 border border-white/5 text-center">
+                        <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center mx-auto mb-3">
+                          <span class="iconify text-green-400" data-icon="lucide:globe" data-width="24"></span>
+                        </div>
+                        <p class="text-[13px] font-medium text-white">Global Edge Network</p>
+                        <p class="text-[11px] text-text-muted mt-1">Fast delivery</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- SUPPORT & HEALTH CHECK -->
+                  <div class="grid md:grid-cols-2 gap-6 mb-8">
+                    <div class="glass-card rounded-2xl p-8">
+                      <h3 class="text-[20px] font-semibold text-white mb-4 flex items-center gap-2">
+                        <span class="iconify text-accent-lime" data-icon="lucide:headphones" data-width="20"></span>
+                        Support
+                      </h3>
+                      <p class="text-[14px] text-text-secondary mb-4">For developer support:</p>
+                      <a href="mailto:developers@luviio.com" class="inline-flex items-center gap-2 text-accent-blue hover:text-accent-cyan transition-colors text-[14px] font-medium">
+                        <span class="iconify" data-icon="lucide:mail" data-width="16"></span>
+                        developers@luviio.com
+                      </a>
+                      <div class="mt-4 pt-4 border-t border-white/5">
+                        <p class="text-[12px] text-text-muted">Official website: <a href="#" class="text-accent-cyan hover:text-white transition-colors">https://luviio.com</a></p>
+                      </div>
+                    </div>
+
+                    <div class="glass-card rounded-2xl p-8">
+                      <h3 class="text-[20px] font-semibold text-white mb-4 flex items-center gap-2">
+                        <span class="iconify text-accent-lime" data-icon="lucide:activity" data-width="20"></span>
+                        Health Check
+                      </h3>
+                      <p class="text-[14px] text-text-secondary mb-4">Check API status:</p>
+                      <div class="flex items-center gap-3 mb-4">
+                        <span class="doc-endpoint doc-method-get">GET</span>
+                        <span class="doc-endpoint">${AUTH_API}/</span>
+                      </div>
+                      <div class="doc-json">
+<pre>{
+  <span class="key">"success"</span>: <span class="bool">true</span>,
+  <span class="key">"message"</span>: <span class="string">"Auth2U API Running 🚀"</span>
+}</pre>
+                      </div>
+                    </div>
+                  </div>
+
                 </article>
               </main>
             </div>
@@ -2089,8 +2830,8 @@ document.addEventListener('click', (e) => {
                   <span class="gradient-text">Pricing.</span>
                 </h1>
                 <p class="text-zinc-400 text-lg mt-10 max-w-2xl mx-auto animate-fade-up delay-1 leading-relaxed">
-                  Start free with 100 OTP requests per month.<br/>
-                  Upgrade when you're ready to scale.
+                  Choose the right plan for your application's needs.<br/>
+                  Start free, upgrade when you're ready.
                 </p>
               </div>
             </section>
@@ -2098,11 +2839,11 @@ document.addEventListener('click', (e) => {
             <!-- PRICING CARDS GRID - ENHANCED BRIGHTNESS & UI -->
             <section class="grid lg:grid-cols-4 border-b border-white/[0.12]">
               
-              <!-- FREE PLAN -->
+              <!-- STARTER PLAN -->
               <div class="pricing-card p-8 md:p-10 border-r border-white/[0.12] group">
                 <div class="mb-6">
                   <h3 class="text-2xl font-semibold mb-2 text-white">
-                    Free
+                    Starter
                   </h3>
                   <p class="text-zinc-500 text-[14px] leading-relaxed">
                     For side projects and testing
@@ -2110,7 +2851,7 @@ document.addEventListener('click', (e) => {
                 </div>
                 <div class="mb-8 pb-8 border-b border-white/[0.08]">
                   <span class="text-5xl font-bold text-white tracking-tight">
-                    RM0
+                    Free
                   </span>
                   <div class="text-zinc-500 mt-2 text-[14px]">
                     Forever free
@@ -2119,11 +2860,7 @@ document.addEventListener('click', (e) => {
                 <ul class="space-y-4 text-sm text-zinc-400 mb-8">
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>100 OTP requests/month</span>
-                  </li>
-                  <li class="flex items-center gap-3">
-                    <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>1 Project</span>
+                    <span>5,000 requests/month</span>
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
@@ -2151,30 +2888,26 @@ document.addEventListener('click', (e) => {
                 </button>
               </div>
 
-              <!-- STARTER PLAN -->
+              <!-- PRO PLAN -->
               <div class="pricing-card p-8 md:p-10 border-r border-white/[0.12] group">
                 <div class="mb-6">
                   <h3 class="text-2xl font-semibold mb-2 text-white">
-                    Starter
+                    Pro
                   </h3>
                   <p class="text-zinc-500 text-[14px] leading-relaxed">
                     For growing applications
                   </p>
                 </div>
                 <div class="mb-8 pb-8 border-b border-white/[0.08]">
-                  <span class="text-5xl font-bold text-white tracking-tight">RM99</span>
+                  <span class="text-5xl font-bold text-white tracking-tight">50K</span>
                   <span class="text-zinc-500 text-[18px] ml-1">
-                    /month
+                    req/mo
                   </span>
                 </div>
                 <ul class="space-y-4 text-sm text-zinc-400 mb-8">
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>5,000 OTP requests/month</span>
-                  </li>
-                  <li class="flex items-center gap-3">
-                    <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>Up to 5 Projects</span>
+                    <span>50,000 requests/month</span>
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
@@ -2198,11 +2931,11 @@ document.addEventListener('click', (e) => {
                   </li>
                 </ul>
                 <button onclick="window.location.hash='#/signup'" class="btn-pricing w-full rounded-xl bg-white text-black py-3.5 hover:bg-zinc-200 transition-all duration-300 font-medium text-sm">
-                  Start 14-Day Trial →
+                  Get Started →
                 </button>
               </div>
 
-              <!-- PRO PLAN - POPULAR -->
+              <!-- ENTERPRISE PLAN - POPULAR -->
               <div class="pricing-card p-8 md:p-10 border-r border-white/[0.12] relative group" style="background: #0c0c0c;">
                 <div class="absolute top-6 right-6">
                   <span class="popular-badge text-white px-4 py-1.5 text-xs rounded-full font-bold uppercase tracking-wider">
@@ -2212,30 +2945,26 @@ document.addEventListener('click', (e) => {
                 
                 <div class="mb-6">
                   <h3 class="text-2xl font-semibold mb-2 text-white">
-                    Pro
+                    Enterprise
                   </h3>
                   <p class="text-zinc-500 text-[14px] leading-relaxed">
                     For teams and businesses
                   </p>
                 </div>
                 <div class="mb-8 pb-8 border-b border-white/[0.08]">
-                  <span class="text-5xl font-bold text-white tracking-tight">RM299</span>
+                  <span class="text-5xl font-bold text-white tracking-tight">1M+</span>
                   <span class="text-zinc-500 text-[18px] ml-1">
-                    /month
+                    req/mo
                   </span>
                 </div>
                 <ul class="space-y-4 text-sm text-zinc-400 mb-8">
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon text-accent-blue" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>50,000 OTP requests/month</span>
+                    <span>1,000,000+ requests/month</span>
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon text-accent-blue" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>Unlimited Projects</span>
-                  </li>
-                  <li class="flex items-center gap-3">
-                    <span class="iconify check-icon text-accent-blue" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>All Starter features</span>
+                    <span>All Pro features</span>
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon text-accent-blue" data-icon="lucide:check-circle-2" data-width="18"></span>
@@ -2251,37 +2980,33 @@ document.addEventListener('click', (e) => {
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon text-accent-blue" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>Team Access (up to 10)</span>
+                    <span>SLA Guarantee (99.99%)</span>
                   </li>
                 </ul>
-                <button onclick="window.location.hash='#/contact'" class="btn-pricing w-full rounded-xl bg-gradient-to-r from-accent-blue to-[#0056D4] py-3.5 text-white hover:shadow-xl hover:shadow-accent-blue/30 transition-all duration-300 font-medium text-sm">
+                <a href="#/contact" class="spa-link btn-pricing w-full rounded-xl bg-gradient-to-r from-accent-blue to-[#0056D4] py-3.5 text-white hover:shadow-xl hover:shadow-accent-blue/30 transition-all duration-300 font-medium text-sm block text-center">
                   Contact Sales →
-                </button>
+                </a>
               </div>
 
-              <!-- ENTERPRISE PLAN -->
+              <!-- CUSTOM PLAN -->
               <div class="pricing-card p-8 md:p-10 group">
                 <div class="mb-6">
                   <h3 class="text-2xl font-semibold mb-2 text-white">
-                    Enterprise
+                    Custom
                   </h3>
                   <p class="text-zinc-500 text-[14px] leading-relaxed">
-                    For large organizations
+                    Tailored solutions
                   </p>
                 </div>
                 <div class="mb-8 pb-8 border-b border-white/[0.08]">
                   <span class="text-5xl font-bold text-white tracking-tight">
-                    Custom
+                    Let's Talk
                   </span>
                 </div>
                 <ul class="space-y-4 text-sm text-zinc-400 mb-8">
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
                     <span>Custom volume limits</span>
-                  </li>
-                  <li class="flex items-center gap-3">
-                    <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
-                    <span>SLA Guarantee (99.99%)</span>
                   </li>
                   <li class="flex items-center gap-3">
                     <span class="iconify check-icon" data-icon="lucide:check-circle-2" data-width="18"></span>
@@ -2323,27 +3048,19 @@ document.addEventListener('click', (e) => {
                 <div class="p-5 text-zinc-500 text-[13px] font-semibold uppercase tracking-wider">
                   Features
                 </div>
-                <div class="p-5 text-center font-semibold text-white text-[13px]">Free</div>
                 <div class="p-5 text-center font-semibold text-white text-[13px]">Starter</div>
-                <div class="p-5 text-center font-semibold text-accent-blue text-[13px]">Pro</div>
-                <div class="p-5 text-center font-semibold text-white text-[13px]">Enterprise</div>
+                <div class="p-5 text-center font-semibold text-white text-[13px]">Pro</div>
+                <div class="p-5 text-center font-semibold text-accent-blue text-[13px]">Enterprise</div>
+                <div class="p-5 text-center font-semibold text-white text-[13px]">Custom</div>
               </div>
               
               <!-- Table Rows - Brighter Borders -->
               <div class="table-row-pricing grid grid-cols-5 transition-colors">
-                <div class="p-5 text-zinc-400 text-[13px] font-medium">Monthly OTP Requests</div>
-                <div class="p-5 text-center text-white text-[13px] font-medium">100</div>
+                <div class="p-5 text-zinc-400 text-[13px] font-medium">Monthly Requests</div>
                 <div class="p-5 text-center text-white text-[13px] font-medium">5,000</div>
-                <div class="p-5 text-center text-white text-[13px] font-medium feature-highlight rounded-lg mx-2 my-1">50,000</div>
-                <div class="p-5 text-center text-white text-[13px] font-medium">Custom</div>
-              </div>
-              
-              <div class="table-row-pricing grid grid-cols-5 transition-colors">
-                <div class="p-5 text-zinc-400 text-[13px]  font-medium">Projects</div>
-                <div class="p-5 text-center text-white text-[13px]">1</div>
-                <div class="p-5 text-center text-white text-[13px]">5</div>
-                <div class="p-5 text-center text-white text-[13px] feature-highlight rounded-lg mx-2 my-1">Unlimited</div>
-                <div class="p-5 text-center text-white text-[13px]">Unlimited</div>
+                <div class="p-5 text-center text-white text-[13px] font-medium">50,000</div>
+                <div class="p-5 text-center text-white text-[13px] font-medium feature-highlight rounded-lg mx-2 my-1">1,000,000+</div>
+                <div class="p-5 text-center text-white text-[13px] font-medium">Unlimited</div>
               </div>
               
               <div class="table-row-pricing grid grid-cols-5 transition-colors">
@@ -2393,14 +3110,6 @@ document.addEventListener('click', (e) => {
                 <div class="p-5 text-center text-zinc-400 text-[12px]">99.9%</div>
                 <div class="p-5 text-center text-white text-[12px] font-medium feature-highlight rounded-lg mx-2 my-1">99.99%</div>
               </div>
-              
-              <div class="table-row-pricing grid grid-cols-5 transition-colors">
-                <div class="p-5 text-zinc-400 text-[13px] font-medium">Audit Logs</div>
-                <div class="p-5 text-center text-zinc-600">—</div>
-                <div class="p-5 text-center text-zinc-600">—</div>
-                <div class="p-5 text-center text-white"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent-lime/20 text-accent-lime text-xs">✓</span></div>
-                <div class="p-5 text-center text-white"><span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-accent-lime/20 text-accent-lime text-xs">✓</span></div>
-              </div>
             </section>
 
             <!-- FAQ SECTION - REDESIGNED WITH BETTER UI -->
@@ -2426,7 +3135,7 @@ document.addEventListener('click', (e) => {
                     </button>
                     <div class="faq-content-pricing">
                       <p class="faq-text">
-                        Each call to the Send OTP endpoint (whether email or SMS) counts as one request. Verification calls do not count toward your limit. Failed deliveries due to invalid addresses are still counted against your quota.
+                        Each call to the Send OTP endpoint (POST /otp/send) counts as one request. Verification calls do not count toward your limit. Failed deliveries due to invalid addresses are still counted against your quota.
                       </p>
                     </div>
                   </div>
@@ -2438,7 +3147,7 @@ document.addEventListener('click', (e) => {
                     </button>
                     <div class="faq-content-pricing">
                       <p class="faq-text">
-                        Yes, absolutely! You can upgrade at any time directly from your dashboard. Changes take effect immediately and we'll prorate the difference for the remainder of your billing cycle. No penalties, no lock-in contracts.
+                        Yes! You can upgrade at any time by contacting our sales team. Changes take effect immediately and we'll prorate the difference for the remainder of your billing cycle.
                       </p>
                     </div>
                   </div>
@@ -2450,7 +3159,7 @@ document.addEventListener('click', (e) => {
                     </button>
                     <div class="faq-content-pricing">
                       <p class="faq-text">
-                        We'll send you a notification when you reach 80% of your monthly limit. If you exceed it, additional requests will be queued until your next billing cycle begins, or you can purchase add-on packs to continue service immediately.
+                        We'll send you a notification when you reach 80% of your monthly limit. If you exceed it, additional requests will return an error until your next billing cycle begins.
                       </p>
                     </div>
                   </div>
@@ -2462,7 +3171,7 @@ document.addEventListener('click', (e) => {
                     </button>
                     <div class="faq-content-pricing">
                       <p class="faq-text">
-                        We offer a 14-day money-back guarantee on all paid plans (Starter and Pro). If you're not satisfied within the first 14 days, contact us for a full refund. Enterprise plans have custom terms outlined in your contract agreement.
+                        Our Starter plan is completely free. For paid plans (Pro, Enterprise), please contact our support team regarding any billing questions or concerns.
                       </p>
                     </div>
                   </div>
@@ -2474,19 +3183,7 @@ document.addEventListener('click', (e) => {
                     </button>
                     <div class="faq-content-pricing">
                       <p class="faq-text">
-                        Our standard plans are optimized for Malaysian (+60) phone numbers with direct local carrier routing for maximum reliability. Enterprise customers can request international coverage for additional countries with custom pricing.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div class="faq-item-pricing">
-                    <button class="faq-btn-pricing">
-                      <span>What payment methods do you accept?</span>
-                      <span class="faq-icon">+</span>
-                    </button>
-                    <div class="faq-content-pricing">
-                      <p class="faq-text">
-                        We accept all major credit cards (Visa, Mastercard, American Express), online banking via FPX, and company invoicing for annual Enterprise plans. All payments are processed securely through Stripe.
+                        Our standard plans are optimized for Malaysian (+60) phone numbers with direct local carrier routing. Enterprise customers can request international coverage for additional countries.
                       </p>
                     </div>
                   </div>
@@ -2516,7 +3213,7 @@ document.addEventListener('click', (e) => {
                 <div class="absolute top-0 right-0 w-64 h-64 bg-accent-lime/5 rounded-full blur-3xl"></div>
                 <div class="relative">
                   <div class="text-zinc-500 text-xs uppercase tracking-widest mb-4 font-semibold">
-                    Trusted by Malaysian Companies
+                    Trusted by Malaysian Developers
                   </div>
                   <div class="text-6xl font-bold text-white mb-3 tracking-tight">
                     10,000+
@@ -2706,7 +3403,7 @@ document.addEventListener('click', (e) => {
       `;
     }
 
-    // --- DASHBOARD PAGE (Integrated from second HTML) ---
+    // --- DASHBOARD PAGE ---
     function dashboardPage() {
       const user = getCurrentUser();
       if (!user) return notFoundPage();
@@ -2715,6 +3412,7 @@ document.addEventListener('click', (e) => {
       const maskedEmail = user.email.substring(0, 2) + '***' + user.email.split('@')[1];
       const loginTime = new Date(user.loginTime);
       const timeAgo = getTimeAgo(loginTime);
+      const apiKey = user.apiKey || 'auth2u_live_' + Math.random().toString(36).slice(2, 14);
       
       return `
         <section class="min-h-screen pt-24 pb-12 px-6 relative overflow-hidden">
@@ -2807,7 +3505,7 @@ document.addEventListener('click', (e) => {
                       </div>
                       <div class="flex-1 min-w-0">
                         <div class="text-[13px] font-medium text-white truncate">${maskedEmail}</div>
-                        <div class="text-[11px] text-text-muted">Free Plan</div>
+                        <div class="text-[11px] text-text-muted">${user.plan || 'starter'} Plan</div>
                       </div>
                     </div>
                     
@@ -2823,8 +3521,8 @@ document.addEventListener('click', (e) => {
                         <span class="text-white">${loginTime.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       <div class="flex justify-between text-[13px]">
-                        <span class="text-text-secondary">Session ID</span>
-                        <span class="text-text-muted font-mono text-[11px]">${user.loginTime.toString().slice(-6)}</span>
+                        <span class="text-text-secondary">API Key</span>
+                        <span class="text-text-muted font-mono text-[11px]">${apiKey.substring(0, 12)}...</span>
                       </div>
                     </div>
                   </div>
@@ -2877,28 +3575,28 @@ document.addEventListener('click', (e) => {
                   <div class="bg-black/40 rounded-xl p-5 border border-white/[0.06] mb-4">
                     <div class="flex items-center justify-between mb-2">
                       <label class="text-[12px] text-text-muted font-medium uppercase tracking-wider">API Endpoint</label>
-                      <span class="iconify text-text-muted cursor-pointer hover:text-white transition-colors" data-icon="lucide:copy" data-width="14" onclick="navigator.clipboard.writeText('${AUTH_API}/v1'); showToast('Copied to clipboard!')"></span>
+                      <span class="iconify text-text-muted cursor-pointer hover:text-white transition-colors" data-icon="lucide:copy" data-width="14" onclick="navigator.clipboard.writeText('${AUTH_API}'); showToast('Copied to clipboard!')"></span>
                     </div>
-                    <code class="text-[14px] text-accent-cyan break-all font-mono">${AUTH_API}/v1</code>
+                    <code class="text-[14px] text-accent-cyan break-all font-mono">${AUTH_API}</code>
                   </div>
                   
                   <div class="bg-black/40 rounded-xl p-5 border border-white/[0.06]">
                     <div class="flex items-center justify-between mb-2">
-                      <label class="text-[12px] text-text-muted font-medium uppercase tracking-wider">Secret Key</label>
-                      <span class="iconify text-text-muted cursor-pointer hover:text-white transition-colors" data-icon="lucide:copy" data-width="14" onclick="showToast('Key copied (demo)!')"></span>
+                      <label class="text-[12px] text-text-muted font-medium uppercase tracking-wider">Secret Key (x-api-key)</label>
+                      <span class="iconify text-text-muted cursor-pointer hover:text-white transition-colors" data-icon="lucide:copy" data-width="14" onclick="showToast('Key copied! Keep it safe.')"></span>
                     </div>
-                    <code class="text-[14px] text-white/60 break-all font-mono tracking-wider">auth_live_${user.loginTime.toString(36).slice(-8)}${Math.random().toString(36).slice(2, 6)}</code>
+                    <code class="text-[14px] text-white/60 break-all font-mono tracking-wider">${apiKey}</code>
                   </div>
                   
                   <div class="mt-4 flex items-start gap-2 p-3 bg-accent-blue/10 border border-accent-blue/20 rounded-lg">
                     <span class="iconify text-accent-blue mt-0.5 flex-shrink-0" data-icon="lucide:info" data-width="16"></span>
                     <p class="text-[12px] text-text-secondary leading-relaxed">
-                      Keep your secret key safe. Never expose it in client-side code. Use environment variables or a backend proxy.
+                      Include this key as <code class="text-accent-cyan bg-black/30 px-1 rounded">x-api-key</code> header in all authenticated requests. Never expose it client-side.
                     </p>
                   </div>
                 </div>
 
-                <!-- Recent Activity / Usage Chart Placeholder -->
+                <!-- Usage Stats / Activity Chart Placeholder -->
                 <div class="glass-card rounded-2xl p-6 md:p-8">
                   <div class="flex items-center justify-between mb-6">
                     <h3 class="text-[18px] font-semibold text-white flex items-center gap-2">
@@ -2944,7 +3642,7 @@ document.addEventListener('click', (e) => {
                 <div class="glass-card rounded-2xl p-6 md:p-8">
                   <h3 class="text-[18px] font-semibold text-white mb-6 flex items-center gap-2">
                     <span class="iconify text-accent-lime" data-icon="lucide:rocket" data-width="20"></span>
-                    Getting Started Checklist
+                    Quick Start Guide
                   </h3>
                   
                   <div class="space-y-3">
@@ -2952,23 +3650,23 @@ document.addEventListener('click', (e) => {
                       <input type="checkbox" checked disabled class="mt-1 w-4 h-4 rounded border-white/20 bg-transparent accent-accent-lime">
                       <div class="flex-1">
                         <div class="text-[14px] text-white font-medium group-hover:text-accent-lime transition-colors">Account Created ✓</div>
-                        <div class="text-[12px] text-text-muted">Your account is active and ready</div>
+                        <div class="text-[12px] text-text-muted">Your API key is ready above</div>
                       </div>
                     </label>
                     
                     <label class="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer group">
                       <input type="checkbox" class="mt-1 w-4 h-4 rounded border-white/20 bg-transparent accent-accent-lime">
                       <div class="flex-1">
-                        <div class="text-[14px] text-text-secondary group-hover:text-white transition-colors">Send First OTP</div>
-                        <div class="text-[12px] text-text-muted">Test the authentication flow</div>
+                        <div class="text-[14px] text-text-secondary group-hover:text-white transition-colors">Test Send OTP</div>
+                        <div class="text-[12px] text-text-muted">Try sending to your own email</div>
                       </div>
                     </label>
                     
                     <label class="flex items-start gap-3 p-3 rounded-xl hover:bg-white/[0.03] transition-colors cursor-pointer group">
                       <input type="checkbox" class="mt-1 w-4 h-4 rounded border-white/20 bg-transparent accent-accent-lime">
                       <div class="flex-1">
-                        <div class="text-[14px] text-text-secondary group-hover:text-white transition-colors">Integrate SDK</div>
-                        <div class="text-[12px] text-text-muted">Add Auth2U to your application</div>
+                        <div class="text-[14px] text-text-secondary group-hover:text-white transition-colors">Integrate into App</div>
+                        <div class="text-[12px] text-text-muted">Copy the JavaScript/React examples</div>
                       </div>
                     </label>
                     
@@ -2976,7 +3674,7 @@ document.addEventListener('click', (e) => {
                       <input type="checkbox" class="mt-1 w-4 h-4 rounded border-white/20 bg-transparent accent-accent-lime">
                       <div class="flex-1">
                         <div class="text-[14px] text-text-secondary group-hover:text-white transition-colors">Go Live</div>
-                        <div class="text-[12px] text-text-muted">Deploy to production</div>
+                        <div class="text-[12px] text-text-muted">Deploy to production environment</div>
                       </div>
                     </label>
                   </div>
@@ -3023,64 +3721,29 @@ document.addEventListener('click', (e) => {
               <h2 class="text-[24px] font-semibold text-white text-center mb-2">Welcome back</h2>
               <p class="text-[14px] text-text-secondary text-center mb-8">Sign in to your Auth2U account</p>
               
-              <!-- Login Options Tabs -->
-              <div class="flex gap-2 mb-6 bg-black/30 rounded-lg p-1">
-                <button id="tabEmail" onclick="switchLoginTab('email')" class="flex-1 py-2 text-[13px] font-medium rounded-md transition-all bg-white/10 text-white">Email OTP</button>
-                <button id="tabSMS" onclick="switchLoginTab('sms')" class="flex-1 py-2 text-[13px] font-medium rounded-md transition-all text-text-muted hover:text-white">SMS OTP</button>
-                <button id="tabMagic" onclick="switchLoginTab('magic')" class="flex-1 py-2 text-[13px] font-medium rounded-md transition-all text-text-muted hover:text-white">Magic Link</button>
-              </div>
-
-              <!-- Email OTP Form - Integrated with Real API -->
+              <!-- Login Form - Integrated with Real API -->
               <form id="loginFormEmail" class="space-y-4">
                 <div>
                   <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Email Address</label>
                   <input type="email" id="loginEmailInput" class="input-glass w-full rounded-xl py-3.5 px-4 text-[14px]" placeholder="name@company.com" required>
                 </div>
-                <button type="submit" class="btn-primary w-full py-3.5 text-[14px]">Send OTP Code</button>
-              </form>
-
-              <!-- SMS OTP Form (Hidden by default) -->
-              <form id="loginFormSMS" class="space-y-4 hidden">
-                <div>
-                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Mobile Number (+60)</label>
-                  <input type="tel" class="input-glass w-full rounded-xl py-3.5 px-4 text-[14px]" placeholder="12 345 6789" required>
-                </div>
-                <button type="submit" onclick="showToast('SMS OTP coming soon!')" class="btn-primary w-full py-3.5 text-[14px]">Send SMS Code</button>
-              </form>
-
-              <!-- Magic Link Form (Hidden by default) -->
-              <form id="loginFormMagic" class="space-y-4 hidden">
-                <div>
-                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Email Address</label>
-                  <input type="email" class="input-glass w-full rounded-xl py-3.5 px-4 text-[14px]" placeholder="name@company.com" required>
-                </div>
-                <button type="submit" onclick="showToast('Magic link sent! Check your inbox.')" class="btn-primary w-full py-3.5 text-[14px]">Send Magic Link</button>
+                <button type="submit" class="btn-primary w-full py-3.5 text-[14px]">Sign In with Email OTP</button>
               </form>
               
               <div class="relative my-6">
                 <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/5"></div></div>
-                <div class="relative flex justify-center text-[11px] text-text-muted"><span class="bg-surface px-3">or</span></div>
+                <div class="relative flex justify-center text-[11px] text-text-muted"><span class="bg-surface px-3">or create new account</span></div>
               </div>
               
-              <div class="space-y-3">
-                <button onclick="showToast('Redirecting to GitHub...')" class="w-full glass rounded-xl py-3 text-[13px] font-medium text-white hover:bg-white/10 transition-all flex items-center justify-center gap-3 border-white/10 group">
-                  <span class="iconify group-hover:scale-110 transition-transform" data-icon="lucide:github" data-width="18" data-height="18"></span>
-                  Continue with GitHub
-                </button>
-              </div>
+              <button onclick="window.location.hash='/signup'" class="w-full glass rounded-xl py-3 text-[13px] font-medium text-white hover:bg-white/10 transition-all flex items-center justify-center gap-3 border-white/10 group">
+                <span class="iconify group-hover:scale-110 transition-transform" data-icon="lucide:user-plus" data-width="18" data-height="18"></span>
+                Create New Account
+              </button>
             </div>
             
             <div class="mt-6 flex items-center justify-between text-[13px]">
-              <a href="#" class="text-text-muted hover:text-white transition-colors">Forgot password?</a>
-              <a href="#/signup" class="spa-link text-accent-blue hover:text-accent-cyan transition-colors font-medium">Create Account →</a>
-            </div>
-
-            <div class="mt-8 text-center space-y-2 text-[12px] text-text-muted">
-              <a href="#/status" class="spa-link hover:text-white transition-colors">System Status</a>
-              <span class="mx-2">•</span>
-              <a href="#/docs" class="spa-link hover:text-white transition-colors">Documentation</a>
-              <span class="mx-2">•</span>
-              <a href="#/contact" class="spa-link hover:text-white transition-colors">Support</a>
+              <a href="#/docs" class="spa-link text-text-muted hover:text-white transition-colors">Need help? View Docs →</a>
+              <a href="#/status" class="spa-link text-text-muted hover:text-white transition-colors">System Status</a>
             </div>
           </div>
         </section>
@@ -3107,58 +3770,40 @@ document.addEventListener('click', (e) => {
               <p class="text-[14px] text-text-secondary text-center mb-8">Start building secure authentication in minutes</p>
               
               <form id="signupForm" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">First Name</label>
-                    <input type="text" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="Ahmad" required>
-                  </div>
-                  <div>
-                    <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Last Name</label>
-                    <input type="text" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="Bin Abdullah" required>
-                  </div>
-                </div>
-                
                 <div>
-                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Company Name <span class="text-text-muted">(Optional)</span></label>
-                  <input type="text" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="Your Company Sdn Bhd">
+                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Full Name</label>
+                  <input type="text" id="signupName" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="Danial" required>
                 </div>
                 
                 <div>
                   <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Email Address</label>
-                  <input type="email" id="signupEmail" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="ahmad@company.com.my" required>
+                  <input type="email" id="signupEmail" class="input-glass w-full rounded-xl py-3 px-4 text-[14px]" placeholder="danial@company.com.my" required>
                 </div>
                 
                 <div>
-                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Password</label>
-                  <div class="relative">
-                    <input type="password" id="passwordInput" class="input-glass w-full rounded-xl py-3 px-4 pr-12 text-[14px]" placeholder="Min. 8 characters" required minlength="8">
-                    <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors">
-                      <span class="iconify" data-icon="lucide:eye" data-width="18" data-height="18" id="eyeIcon"></span>
-                    </button>
-                  </div>
-                </div>
-
-                <div class="flex items-start gap-3 py-2">
-                  <input type="checkbox" id="termsCheck" class="mt-1 w-4 h-4 rounded border-white/20 bg-transparent checked:bg-accent-blue focus:ring-accent-blue/50" required>
-                  <label for="termsCheck" class="text-[13px] text-text-secondary leading-relaxed cursor-pointer">
-                    I agree to the <a href="#" class="text-accent-blue hover:underline">Terms of Service</a> and <a href="#" class="text-accent-blue hover:underline">Privacy Policy</a>
-                  </label>
+                  <label class="block text-[12px] font-medium text-text-secondary mb-2 ml-1">Select Plan</label>
+                  <select id="signupPlan" class="input-glass w-full rounded-xl py-3 px-4 text-[14px] appearance-none cursor-pointer bg-transparent">
+                    <option value="starter">Starter (Free - 5,000 req/mo)</option>
+                    <option value="pro">Pro (50,000 req/mo)</option>
+                    <option value="enterprise">Enterprise (1M+ req/mo)</option>
+                  </select>
                 </div>
                 
                 <button type="submit" class="btn-primary w-full py-3.5 text-[14px] font-medium glow-ring">
-                  Create Free Account
+                  Create Account & Get API Key
                 </button>
               </form>
               
               <div class="relative my-6">
                 <div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/5"></div></div>
-                <div class="relative flex justify-center text-[11px] text-text-muted"><span class="bg-surface px-3">or sign up with</span></div>
+                <div class="relative flex justify-center text-[11px] text-text-muted"><span class="bg-surface px-3">secure connection</span></div>
               </div>
               
-              <button onclick="showToast('Redirecting to Google...')" class="w-full glass rounded-xl py-3 text-[13px] font-medium text-white hover:bg-white/10 transition-all flex items-center justify-center gap-3 border-white/10 group">
-                <span class="iconify group-hover:scale-110 transition-transform" data-icon="lucide:mail" data-width="18" data-height="18"></span>
-                Continue with Google
-              </button>
+              <p class="text-[12px] text-text-muted text-center leading-relaxed">
+                By creating an account, you agree to our 
+                <a href="#" class="text-accent-blue hover:underline">Terms of Service</a>. 
+                Your API key will be generated instantly.
+              </p>
             </div>
             
             <p class="text-[13px] text-text-muted text-center mt-6">
@@ -3206,14 +3851,14 @@ document.addEventListener('click', (e) => {
                 <a href="mailto:support@auth2u.com" class="text-[13px] text-accent-lime hover:text-emerald-400 transition-colors font-medium">support@auth2u.com</a>
               </div>
 
-              <!-- Partnership Requests -->
+              <!-- Developer Support -->
               <div class="glass-card rounded-2xl p-7 text-center group">
                 <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-accent-purple/20 to-accent-magenta/20 flex items-center justify-center mx-auto mb-5 group-hover:scale-110 transition-transform duration-300">
-                  <span class="iconify text-accent-purple" data-icon="lucide:handshake" data-width="24"></span>
+                  <span class="iconify text-accent-purple" data-icon="lucide:code-2" data-width="24"></span>
                 </div>
-                <h3 class="text-[18px] font-semibold text-white mb-2">Partnerships</h3>
-                <p class="text-[14px] text-text-secondary mb-4 leading-relaxed">Reseller programs, integrations, and strategic alliances</p>
-                <a href="mailto:partners@auth2u.com" class="text-[13px] text-accent-purple hover:text-accent-magenta transition-colors font-medium">partners@auth2u.com</a>
+                <h3 class="text-[18px] font-semibold text-white mb-2">Developer Support</h3>
+                <p class="text-[14px] text-text-secondary mb-4 leading-relaxed">SDK help, feature requests, and documentation feedback</p>
+                <a href="mailto:developers@luviio.com" class="text-[13px] text-accent-purple hover:text-accent-magenta transition-colors font-medium">developers@luviio.com</a>
               </div>
             </div>
 
@@ -3250,22 +3895,6 @@ document.addEventListener('click', (e) => {
                 </div>
                 <button type="submit" class="btn-primary w-full text-[14px] py-4 font-medium">Send Message</button>
               </form>
-            </div>
-
-            <!-- Quick Links -->
-            <div class="max-w-[650px] mx-auto mt-12 grid grid-cols-3 gap-4 text-center">
-              <a href="#/docs" class="spa-link glass-card rounded-xl p-4 block group">
-                <span class="iconify text-accent-cyan mx-auto mb-2 group-hover:scale-110 transition-transform block" data-icon="lucide:book-open" data-width="24"></span>
-                <span class="text-[13px] text-text-secondary group-hover:text-white transition-colors">Documentation</span>
-              </a>
-              <a href="#/status" class="spa-link glass-card rounded-xl p-4 block group">
-                <span class="iconify text-accent-lime mx-auto mb-2 group-hover:scale-110 transition-transform block" data-icon="lucide:activity" data-width="24"></span>
-                <span class="text-[13px] text-text-secondary group-hover:text-white transition-colors">System Status</span>
-              </a>
-              <a href="#/pricing" class="spa-link glass-card rounded-xl p-4 block group">
-                <span class="iconify text-accent-blue mx-auto mb-2 group-hover:scale-110 transition-transform block" data-icon="lucide:credit-card" data-width="24"></span>
-                <span class="text-[13px] text-text-secondary group-hover:text-white transition-colors">Pricing Plans</span>
-              </a>
             </div>
 
             <!-- Business Hours -->
@@ -3326,9 +3955,9 @@ document.addEventListener('click', (e) => {
               <div>
                 <h4 class="text-[13px] font-semibold text-white mb-5 uppercase tracking-wider">Authentication</h4>
                 <ul class="space-y-3.5">
-                  <li><a href="#/features" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Email OTP</a></li>
-                  <li><a href="#/features" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">SMS OTP</a></li>
-                  <li><a href="#/features" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Magic Link</a></li>
+                  <li><a href="#/docs#create-account" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Create Account</a></li>
+                  <li><a href="#/docs#send-otp" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Send OTP</a></li>
+                  <li><a href="#/docs#verify-otp" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Verify OTP</a></li>
                   <li><a href="#/docs" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">SDKs</a></li>
                 </ul>
               </div>
@@ -3346,7 +3975,7 @@ document.addEventListener('click', (e) => {
                 <ul class="space-y-3.5">
                   <li><a href="#" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Privacy Policy</a></li>
                   <li><a href="#" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Terms of Service</a></li>
-                  <li><a href="#" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Security</a></li>
+                  <li><a href="#/docs#security" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">Security</a></li>
                   <li><a href="#/status" class="spa-link text-[14px] text-text-secondary hover:text-white transition-colors">SLA</a></li>
                 </ul>
               </div>
@@ -3364,7 +3993,7 @@ document.addEventListener('click', (e) => {
                 <a href="#" class="text-text-muted hover:text-white transition-colors hover:-translate-y-0.5 transform duration-200">
                   <span class="iconify" data-icon="lucide:linkedin" data-width="18" data-height="18"></span>
                 </a>
-                <a href="#" class="text-text-muted hover:text-white transition-colors hover:-translate-y-0.5 transform duration-200">
+                <a href="mailto:developers@luviio.com" class="text-text-muted hover:text-white transition-colors hover:-translate-y-0.5 transform duration-200">
                   <span class="iconify" data-icon="lucide:mail" data-width="18" data-height="18"></span>
                 </a>
               </div>
@@ -3386,25 +4015,23 @@ document.addEventListener('click', (e) => {
         });
       }
 
-      // Signup Form
+      // Signup Form - Uses real API endpoint
       const signupForm = document.getElementById('signupForm');
       if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
+        signupForm.addEventListener('submit', async (e) => {
           e.preventDefault();
+          const name = document.getElementById('signupName')?.value;
           const email = document.getElementById('signupEmail')?.value;
-          if (email) {
-            // Simulate successful registration with auto-login
-            localStorage.setItem(
-              "auth_user",
-              JSON.stringify({
-                email,
-                loggedIn: true,
-                loginTime: Date.now(),
-                token: null
-              })
-            );
-            showToast('Account created! Welcome to Auth2U.');
-            setTimeout(() => { window.location.hash = '#/dashboard'; }, 800);
+          const plan = document.getElementById('signupPlan')?.value || 'starter';
+          
+          if (name && email) {
+            try {
+              showToast('Creating account...');
+              const result = await createAccount(name, email, plan);
+              setTimeout(() => { window.location.hash = '#/dashboard'; }, 1000);
+            } catch(error) {
+              console.error(error);
+            }
           }
         });
       }
@@ -3415,24 +4042,12 @@ document.addEventListener('click', (e) => {
         loginFormEmail.addEventListener('submit', async (e) => {
           e.preventDefault();
           const email = document.getElementById('loginEmailInput')?.value || e.target.querySelector('input[type="email"]').value;
-          if (email) await sendOTP(email);
-        });
-      }
-
-      const loginFormSMS = document.getElementById('loginFormSMS');
-      if (loginFormSMS) {
-        loginFormSMS.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          showToast('SMS OTP coming soon!');
-        });
-      }
-
-      const loginFormMagic = document.getElementById('loginFormMagic');
-      if (loginFormMagic) {
-        loginFormMagic.addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const email = e.target.querySelector('input[type="email"]').value;
-          showToast('Magic link sent! Check your inbox.');
+          if (email && isAuthenticated()) {
+            await sendOTP(email);
+          } else if (email) {
+            showToast('Please sign up first to get your API key');
+            setTimeout(() => { window.location.hash = '#/signup'; }, 1000);
+          }
         });
       }
 
@@ -3490,6 +4105,20 @@ document.addEventListener('click', (e) => {
           e.preventDefault();
           docsNavItems.forEach(i => i.classList.remove('active'));
           item.classList.add('active');
+        });
+      });
+      
+      // Smooth scroll for doc sections
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          const href = this.getAttribute('href');
+          if (href.startsWith('#/') || href === '#' || !document.querySelector(href)) return;
+          
+          e.preventDefault();
+          const target = document.querySelector(href);
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
         });
       });
     }

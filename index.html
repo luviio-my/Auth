@@ -493,7 +493,7 @@
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-2">Free</h3>
                             <div class="price-tag">
-                                <span class="text-4xl font-bold">$0</span>
+                                <span class="text-4xl font-bold">RM0</span>
                                 <span class="text-white/40">/month</span>
                             </div>
                         </div>
@@ -535,7 +535,7 @@
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-2">Starter</h3>
                             <div class="price-tag">
-                                <span class="text-4xl font-bold">$29</span>
+                                <span class="text-4xl font-bold">RM29</span>
                                 <span class="text-white/40">/month</span>
                             </div>
                         </div>
@@ -586,7 +586,7 @@
                                 <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                             </h3>
                             <div class="price-tag">
-                                <span class="text-4xl font-bold">$99</span>
+                                <span class="text-4xl font-bold">RM99</span>
                                 <span class="text-white/40">/month</span>
                             </div>
                         </div>
@@ -632,7 +632,7 @@
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-2">Business</h3>
                             <div class="price-tag">
-                                <span class="text-4xl font-bold">$349</span>
+                                <span class="text-4xl font-bold">RM349</span>
                                 <span class="text-white/40">/month</span>
                             </div>
                         </div>
@@ -678,7 +678,7 @@
                         <div class="mb-6">
                             <h3 class="text-lg font-semibold mb-2">Enterprise</h3>
                             <div class="text-sm text-white/40 mb-1">Custom Pricing</div>
-                            <div class="text-xs text-white/30">$1,500 – $10,000+/mo</div>
+                            <div class="text-xs text-white/30">RM1,500 – RM10,000+/mo</div>
                         </div>
                         
                         <p class="text-sm text-white/50 mb-6">For organizations with unique needs.</p>
@@ -792,11 +792,14 @@
                     <aside class="liquid-glass rounded-2xl p-4 h-fit lg:sticky lg:top-24 reveal">
                         <nav class="space-y-1">
                             <div class="doc-nav-item active" data-section="overview" onclick="scrollToSection('overview')">Overview</div>
-                            <div class="doc-nav-item" data-section="create-account" onclick="scrollToSection('create-account')">Create Account</div>
-                            <div class="doc-nav-item" data-section="send-otp" onclick="scrollToSection('send-otp')">Send OTP</div>
-                            <div class="doc-nav-item" data-section="verify-otp" onclick="scrollToSection('verify-otp')">Verify OTP</div>
+                            <div class="doc-nav-item" data-section="authentication" onclick="scrollToSection('authentication')">Authentication</div>
+                            <div class="doc-nav-item" data-section="account" onclick="scrollToSection('account')">Account API</div>
+                            <div class="doc-nav-item" data-section="otp-send" onclick="scrollToSection('otp-send')">Send OTP</div>
+                            <div class="doc-nav-item" data-section="otp-verify" onclick="scrollToSection('otp-verify')">Verify OTP</div>
+                            <div class="doc-nav-item" data-section="plans" onclick="scrollToSection('plans')">Plans & Limits</div>
                             <div class="doc-nav-item" data-section="errors" onclick="scrollToSection('errors')">Error Responses</div>
-                            <div class="doc-nav-item" data-section="flow" onclick="scrollToSection('flow')">Auth Flow</div>
+                            <div class="doc-nav-item" data-section="security" onclick="scrollToSection('security')">Security Notes</div>
+                            <div class="doc-nav-item" data-section="health" onclick="scrollToSection('health')">Health Check</div>
                         </nav>
                     </aside>
 
@@ -824,8 +827,34 @@
                             </div>
                         </section>
 
+                        <!-- Authentication -->
+                        <section id="authentication" class="reveal scroll-mt-24">
+                            <div class="liquid-glass rounded-2xl p-8">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold">Authentication</h2>
+                                </div>
+                                
+                                <p class="text-white/60 mb-6">All protected endpoints require an API key in the header:</p>
+                                
+                                <div class="code-block">
+                                    <div class="code-header">
+                                        <div class="code-dot bg-red-500"></div>
+                                        <div class="code-dot bg-yellow-500"></div>
+                                        <div class="code-dot bg-green-500"></div>
+                                        <span class="ml-2 text-xs text-white/40">Headers</span>
+                                    </div>
+                                    <pre><code><span class="code-key">x-api-key</span>: <span class="code-string">YOUR_API_KEY</span></code></pre>
+                                </div>
+                                
+                                <p class="text-sm text-white/40 mt-4">You will receive your API key after account creation.</p>
+                            </div>
+                        </section>
+
                         <!-- Create Account -->
-                        <section id="create-account" class="reveal scroll-mt-24">
+                        <section id="account" class="reveal scroll-mt-24">
                             <div class="liquid-glass rounded-2xl p-8">
                                 <div class="flex items-center gap-3 mb-6">
                                     <div class="w-10 h-10 rounded-xl bg-green-500/20 flex items-center justify-center">
@@ -837,7 +866,7 @@
                                     </div>
                                 </div>
                                 
-                                <p class="text-white/60 mb-6">Use the API to create your developer account and receive your API key.</p>
+                                <p class="text-white/60 mb-6">Creates a new Auth2U account (default plan: free).</p>
                                 
                                 <div class="mb-4">
                                     <code class="text-sm text-blue-400 font-mono bg-blue-500/10 px-3 py-1.5 rounded-lg">POST /account/create</code>
@@ -847,7 +876,7 @@
                                 <div class="code-block mb-6">
                                     <pre><code>{
   <span class="code-key">"name"</span>: <span class="code-string">"John Doe"</span>,
-  <span class="code-key">"email"</span>: <span class="code-string">"john@example.com"</span>
+  <span class="code-key">"email"</span>: <span class="code-string">"john@email.com"</span>
 }</code></pre>
                                 </div>
                                 
@@ -855,17 +884,16 @@
                                 <div class="code-block">
                                     <pre><code>{
   <span class="code-key">"success"</span>: <span class="code-bool">true</span>,
-  <span class="code-key">"apiKey"</span>: <span class="code-string">"auth2u_live_xxxxxxxxx"</span>,
+  <span class="code-key">"apiKey"</span>: <span class="code-string">"auth2u_live_xxxxx"</span>,
   <span class="code-key">"plan"</span>: <span class="code-string">"free"</span>,
   <span class="code-key">"limit"</span>: <span class="code-number">1000</span>
 }</code></pre>
                                 </div>
-                                <p class="text-sm text-white/40 mt-4">Save your API key securely. You'll need it for sending OTP codes.</p>
                             </div>
                         </section>
 
                         <!-- Send OTP -->
-                        <section id="send-otp" class="reveal scroll-mt-24">
+                        <section id="otp-send" class="reveal scroll-mt-24">
                             <div class="liquid-glass rounded-2xl p-8">
                                 <div class="flex items-center gap-3 mb-6">
                                     <div class="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center">
@@ -877,7 +905,7 @@
                                     </div>
                                 </div>
                                 
-                                <p class="text-white/60 mb-6">Sends a one-time password to a user's email address.</p>
+                                <p class="text-white/60 mb-6">Sends a one-time password to a user email.</p>
                                 
                                 <div class="mb-4">
                                     <code class="text-sm text-blue-400 font-mono bg-blue-500/10 px-3 py-1.5 rounded-lg">POST /otp/send</code>
@@ -885,15 +913,12 @@
                                 
                                 <h4 class="text-sm font-semibold text-white/80 mb-3">Headers</h4>
                                 <div class="code-block mb-6">
-                                    <pre><code>{
-  <span class="code-key">"Content-Type"</span>: <span class="code-string">"application/json"</span>,
-  <span class="code-key">"x-api-key"</span>: <span class="code-string">"YOUR_API_KEY"</span>
-}</code></pre>
+                                    <pre><code>{<span class="code-key">"x-api-key"</span>: <span class="code-string">"YOUR_API_KEY"</span>}</code></pre>
                                 </div>
                                 
                                 <h4 class="text-sm font-semibold text-white/80 mb-3">Request Body</h4>
                                 <div class="code-block mb-6">
-                                    <pre><code>{<span class="code-key">"email"</span>: <span class="code-string">"user@example.com"</span>}</code></pre>
+                                    <pre><code>{<span class="code-key">"email"</span>: <span class="code-string">"user@email.com"</span>}</code></pre>
                                 </div>
                                 
                                 <h4 class="text-sm font-semibold text-white/80 mb-3">Response</h4>
@@ -907,7 +932,7 @@
                         </section>
 
                         <!-- Verify OTP -->
-                        <section id="verify-otp" class="reveal scroll-mt-24">
+                        <section id="otp-verify" class="reveal scroll-mt-24">
                             <div class="liquid-glass rounded-2xl p-8">
                                 <div class="flex items-center gap-3 mb-6">
                                     <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
@@ -925,26 +950,56 @@
                                     <code class="text-sm text-blue-400 font-mono bg-blue-500/10 px-3 py-1.5 rounded-lg">POST /otp/verify</code>
                                 </div>
                                 
+                                <h4 class="text-sm font-semibold text-white/80 mb-3">Headers</h4>
+                                <div class="code-block mb-6">
+                                    <pre><code>{<span class="code-key">"Content-Type"</span>: <span class="code-string">"application/json"</span>}</code></pre>
+                                </div>
+                                
                                 <h4 class="text-sm font-semibold text-white/80 mb-3">Request Body</h4>
                                 <div class="code-block mb-6">
                                     <pre><code>{
-  <span class="code-key">"email"</span>: <span class="code-string">"user@example.com"</span>,
+  <span class="code-key">"email"</span>: <span class="code-string">"user@email.com"</span>,
   <span class="code-key">"otp"</span>: <span class="code-string">"123456"</span>
 }</code></pre>
                                 </div>
                                 
-                                <h4 class="text-sm font-semibold text-white/80 mb-3">Response (Success)</h4>
-                                <div class="code-block mb-6">
+                                <h4 class="text-sm font-semibold text-white/80 mb-3">Response</h4>
+                                <div class="code-block">
                                     <pre><code>{
   <span class="code-key">"success"</span>: <span class="code-bool">true</span>,
   <span class="code-key">"message"</span>: <span class="code-string">"OTP verified"</span>
 }</code></pre>
                                 </div>
+                            </div>
+                        </section>
 
-                                <h4 class="text-sm font-semibold text-white/80 mb-3">Response (Error)</h4>
-                                <div class="code-block">
-                                    <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"OTP expired"</span>}</code></pre>
+                        <!-- Plans & Limits -->
+                        <section id="plans" class="reveal scroll-mt-24">
+                            <div class="liquid-glass rounded-2xl p-8">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                                    </div>
+                                    <h2 class="text-2xl font-bold">Plans & Limits</h2>
                                 </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <table class="w-full">
+                                        <thead>
+                                            <tr class="border-b border-white/10">
+                                                <th class="py-3 px-4 text-left text-sm font-semibold text-white/70">Plan</th>
+                                                <th class="py-3 px-4 text-right text-sm font-semibold text-white/70">Monthly Limit</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="border-b border-white/5"><td class="py-3 px-4 text-sm text-white/80">Free</td><td class="py-3 px-4 text-right text-sm font-mono text-white/80">1,000 requests</td></tr>
+                                            <tr class="border-b border-white/5"><td class="py-3 px-4 text-sm text-white/80">Starter</td><td class="py-3 px-4 text-right text-sm font-mono text-white/80">5,000 requests</td></tr>
+                                            <tr class="border-b border-white/5"><td class="py-3 px-4 text-sm text-white/80">Pro</td><td class="py-3 px-4 text-right text-sm font-mono text-white/80">50,000 requests</td></tr>
+                                            <tr><td class="py-3 px-4 text-sm text-white/80">Enterprise</td><td class="py-3 px-4 text-right text-sm font-mono text-white/80">1,000,000 requests</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p class="text-sm text-white/40 mt-4">Plan upgrades are handled automatically via billing system (Stripe).</p>
                             </div>
                         </section>
 
@@ -960,6 +1015,14 @@
                                 
                                 <div class="space-y-4">
                                     <div class="code-block">
+                                        <div class="px-4 py-2 border-b border-white/5 text-xs text-red-400 font-semibold">Missing API Key</div>
+                                        <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"Missing API key"</span>}</code></pre>
+                                    </div>
+                                    <div class="code-block">
+                                        <div class="px-4 py-2 border-b border-white/5 text-xs text-red-400 font-semibold">Invalid API Key</div>
+                                        <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"Invalid API key"</span>}</code></pre>
+                                    </div>
+                                    <div class="code-block">
                                         <div class="px-4 py-2 border-b border-white/5 text-xs text-red-400 font-semibold">User Exists</div>
                                         <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"User exists"</span>}</code></pre>
                                     </div>
@@ -967,74 +1030,67 @@
                                         <div class="px-4 py-2 border-b border-white/5 text-xs text-red-400 font-semibold">OTP Expired</div>
                                         <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"OTP expired"</span>}</code></pre>
                                     </div>
-                                    <div class="code-block">
-                                        <div class="px-4 py-2 border-b border-white/5 text-xs text-red-400 font-semibold">Invalid OTP</div>
-                                        <pre><code>{<span class="code-key">"error"</span>: <span class="code-string">"Invalid OTP"</span>}</code></pre>
-                                    </div>
                                 </div>
                             </div>
                         </section>
 
-                        <!-- Auth Flow Diagram -->
-                        <section id="flow" class="reveal scroll-mt-24">
+                        <!-- Security Notes -->
+                        <section id="security" class="reveal scroll-mt-24">
                             <div class="liquid-glass rounded-2xl p-8">
                                 <div class="flex items-center gap-3 mb-6">
-                                    <div class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                                        <svg class="w-5 h-5 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                    <div class="w-10 h-10 rounded-xl bg-yellow-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
                                     </div>
-                                    <h2 class="text-2xl font-bold">Recommended Authentication Flow</h2>
+                                    <h2 class="text-2xl font-bold">Security Notes</h2>
                                 </div>
                                 
-                                <div class="space-y-4 max-w-md mx-auto">
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center text-sm font-bold text-blue-400 shrink-0">1</div>
-                                        <p class="text-sm text-white/70">User enters their email address</p>
+                                <ul class="space-y-3">
+                                    <li class="flex items-start gap-3 text-white/70">
+                                        <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        API keys must be kept private and never shared publicly.
+                                    </li>
+                                    <li class="flex items-start gap-3 text-white/70">
+                                        <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        Never expose your API key in frontend or client-side code.
+                                    </li>
+                                    <li class="flex items-start gap-3 text-white/70">
+                                        <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        Always use server-side requests for OTP operations.
+                                    </li>
+                                    <li class="flex items-start gap-3 text-white/70">
+                                        <svg class="w-5 h-5 text-yellow-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                                        Requests are rate-limited based on your current plan.
+                                    </li>
+                                </ul>
+                            </div>
+                        </section>
+
+                        <!-- Health Check -->
+                        <section id="health" class="reveal scroll-mt-24">
+                            <div class="liquid-glass rounded-2xl p-8">
+                                <div class="flex items-center gap-3 mb-6">
+                                    <div class="w-10 h-10 rounded-xl bg-teal-500/20 flex items-center justify-center">
+                                        <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                                     </div>
-                                    
-                                    <div class="flex justify-center">
-                                        <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+                                    <div>
+                                        <h2 class="text-2xl font-bold">Health Check</h2>
+                                        <span class="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-teal-500/20 text-teal-400 font-mono">GET</span>
                                     </div>
-                                    
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <div class="w-8 h-8 rounded-full bg-cyan-500/20 flex items-center justify-center text-sm font-bold text-cyan-400 shrink-0">2</div>
-                                        <p class="text-sm text-white/70">Frontend calls <code class="font-mono text-xs bg-white/10 px-1.5 py-0.5 rounded">POST /otp/send</code></p>
-                                    </div>
-                                    
-                                    <div class="flex justify-center">
-                                        <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <div class="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-sm font-bold text-emerald-400 shrink-0">3</div>
-                                        <p class="text-sm text-white/70">User receives OTP via email</p>
-                                    </div>
-                                    
-                                    <div class="flex justify-center">
-                                        <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <div class="w-8 h-8 rounded-full bg-orange-500/20 flex items-center justify-center text-sm font-bold text-orange-400 shrink-0">4</div>
-                                        <p class="text-sm text-white/70">User enters OTP code</p>
-                                    </div>
-                                    
-                                    <div class="flex justify-center">
-                                        <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5">
-                                        <div class="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center text-sm font-bold text-green-400 shrink-0">5</div>
-                                        <p class="text-sm text-white/70">Frontend calls <code class="font-mono text-xs bg-white/10 px-1.5 py-0.5 rounded">POST /otp/verify</code></p>
-                                    </div>
-                                    
-                                    <div class="flex justify-center">
-                                        <svg class="w-6 h-6 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
-                                    </div>
-                                    
-                                    <div class="flex items-center gap-4 p-4 rounded-xl bg-green-500/10 border border-green-500/20">
-                                        <div class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center text-sm font-bold text-white shrink-0">✓</div>
-                                        <p class="text-sm text-green-400 font-medium">Login successful!</p>
-                                    </div>
+                                </div>
+                                
+                                <p class="text-white/60 mb-6">Check the status of the Auth2U service.</p>
+                                
+                                <div class="mb-4">
+                                    <code class="text-sm text-blue-400 font-mono bg-blue-500/10 px-3 py-1.5 rounded-lg">GET /health</code>
+                                </div>
+                                
+                                <h4 class="text-sm font-semibold text-white/80 mb-3">Response</h4>
+                                <div class="code-block">
+                                    <pre><code>{
+  <span class="code-key">"success"</span>: <span class="code-bool">true</span>,
+  <span class="code-key">"service"</span>: <span class="code-string">"Auth2U"</span>,
+  <span class="code-key">"status"</span>: <span class="code-string">"running"</span>
+}</code></pre>
                                 </div>
                             </div>
                         </section>
@@ -1119,8 +1175,8 @@
                 </div>
                 <div id="signupError" class="hidden text-sm text-red-400 bg-red-500/10 rounded-lg p-3"></div>
                 <div id="signupSuccess" class="hidden text-sm text-green-400 bg-green-500/10 rounded-lg p-3"></div>
-                <button type="submit" id="createAccountBtn" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-white">Create Account & Get API Key</button>
-                <p class="text-xs text-white/30 text-center mt-4">No password needed! Authentication is done via OTP only.</p>
+                <button type="submit" id="createAccountBtn" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-white">Create Account</button>
+                <p class="text-xs text-white/30 text-center mt-4">No password needed! You'll use OTP to sign in.</p>
             </form>
             
             <div class="mt-6 pt-6 border-t border-white/10 text-center">
@@ -1150,12 +1206,12 @@
     <script>
         // ========== CONFIGURATION ==========
         const API_BASE_URL = 'https://api.luviio.com';
+        const API_KEY = 'auth2u_live_edd1afb969b2442dbf99dadc780fb8e7';
 
         // ========== STATE ==========
         let currentPage = 'home';
         let isMenuOpen = false;
         let currentSigninEmail = '';
-        let userApiKey = null;
         let countdownInterval = null;
 
         // ========== DOM ELEMENTS ==========
@@ -1331,7 +1387,49 @@
             }
         }
 
-        // ========== SIGN IN FLOW (OTP via Real API) ==========
+        // ========== AUTH FUNCTIONS (EXACTLY AS PER EXAMPLE) ==========
+        
+        // SEND OTP - Matches the example exactly
+        async function sendOtp(email) {
+            try {
+                const res = await fetch(API_BASE_URL + "/otp/send", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "x-api-key": API_KEY
+                    },
+                    body: JSON.stringify({ email })
+                });
+                
+                const data = await res.json();
+                return data;
+            } catch (error) {
+                console.error("Send OTP Error:", error);
+                return { error: "Network error occurred" };
+            }
+        }
+
+        // VERIFY OTP - Matches the example exactly (NO x-api-key header)
+        async function verifyOtpApi(email, otp) {
+            try {
+                const res = await fetch(API_BASE_URL + "/otp/verify", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                        // Note: No x-api-key header as per example
+                    },
+                    body: JSON.stringify({ email, otp })
+                });
+                
+                const data = await res.json();
+                return data;
+            } catch (error) {
+                console.error("Verify OTP Error:", error);
+                return { error: "Network error occurred" };
+            }
+        }
+
+        // ========== SIGN IN FLOW (Uses Real API) ==========
         async function handleSignIn(e) {
             e.preventDefault();
             const email = document.getElementById('signinEmail').value.trim().toLowerCase();
@@ -1345,37 +1443,22 @@
                 return;
             }
 
-            // Check if user has an API key stored
-            const userData = JSON.parse(localStorage.getItem('auth2u_user_data') || 'null');
-            if (!userData || !userData.apiKey) {
-                showError(errorEl, 'No account found. Please create an account first.');
-                return;
-            }
-
             sendBtn.disabled = true;
             sendBtn.innerHTML = '<span class="spinner"></span> Sending...';
 
-            // Call real API: POST /otp/send
-            try {
-                const response = await fetch(API_BASE_URL + '/otp/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': userData.apiKey
-                    },
-                    body: JSON.stringify({ email: email })
-                });
+            // Call real API using the exact function from example
+            const data = await sendOtp(email);
 
-                const data = await response.json();
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send OTP Code';
 
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send OTP Code';
+            // Handle response as per example: alert(data.message || data.error)
+            if (data.error) {
+                showError(errorEl, data.error);
+                return;
+            }
 
-                if (!response.ok || data.error) {
-                    showError(errorEl, data.error || 'Failed to send OTP.');
-                    return;
-                }
-
+            if (data.message) {
                 // Success - move to OTP step
                 currentSigninEmail = email;
                 
@@ -1387,12 +1470,6 @@
                 startCountdown(60);
                 
                 showNotification(data.message || 'OTP code sent to ' + email);
-
-            } catch (err) {
-                sendBtn.disabled = false;
-                sendBtn.textContent = 'Send OTP Code';
-                showError(errorEl, 'Network error. Please check your connection.');
-                console.error(err);
             }
         }
 
@@ -1411,89 +1488,55 @@
             verifyBtn.disabled = true;
             verifyBtn.innerHTML = '<span class="spinner"></span> Verifying...';
 
-            // Call real API: POST /otp/verify
-            try {
-                const response = await fetch(API_BASE_URL + '/otp/verify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email: currentSigninEmail,
-                        otp: enteredOtp
-                    })
-                });
+            // Call real API using the exact function from example
+            const data = await verifyOtpApi(currentSigninEmail, enteredOtp);
 
-                const data = await response.json();
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = 'Verify & Sign In';
 
-                verifyBtn.disabled = false;
-                verifyBtn.textContent = 'Verify & Sign In';
-
-                if (!response.ok || data.error) {
-                    showError(errorEl, data.error || 'Verification failed.');
-                    shakeOtpInputs();
-                    return;
-                }
-
+            // Handle response as per example: if (data.success) alert("Login success") else alert(data.error)
+            if (data.success) {
                 // Success! Log user in locally
-                const userData = JSON.parse(localStorage.getItem('auth2u_user_data') || '{}');
-                userData.authenticatedAt = new Date().toISOString();
-                localStorage.setItem('auth2u_current_session', JSON.stringify(userData));
+                const userData = {
+                    email: currentSigninEmail,
+                    apiKey: API_KEY,
+                    authenticatedAt: new Date().toISOString(),
+                    plan: 'free'
+                };
+
+                localStorage.setItem('auth2u_current_user', JSON.stringify(userData));
                 
                 updateUIForLoggedInUser(userData);
                 closeLoginModal();
-                showNotification(data.message || 'Authentication successful! Welcome back.');
-
-            } catch (err) {
-                verifyBtn.disabled = false;
-                verifyBtn.textContent = 'Verify & Sign In';
-                showError(errorEl, 'Network error. Please try again.');
-                console.error(err);
+                showNotification('Welcome back! Authentication successful via OTP.');
+            } else {
+                // Error case
+                showError(errorEl, data.error || 'Verification failed');
+                shakeOtpInputs();
+                clearOtpInputs();
             }
         }
 
         async function resendOtp() {
             const email = currentSigninEmail;
             const resendBtn = document.getElementById('resendOtpBtn');
-            const userData = JSON.parse(localStorage.getItem('auth2u_user_data') || 'null');
-
-            if (!userData || !userData.apiKey) {
-                showNotification('Session expired. Please sign in again.');
-                resetSigninFlow();
-                return;
-            }
 
             resendBtn.disabled = true;
             resendBtn.innerHTML = '<span class="spinner"></span> Sending...';
 
-            try {
-                const response = await fetch(API_BASE_URL + '/otp/send', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': userData.apiKey
-                    },
-                    body: { email: email }
-                });
+            // Call real API again
+            const data = await sendOtp(email);
 
-                const data = await response.json();
+            resendBtn.disabled = false;
 
-                if (!response.ok || data.error) {
-                    showNotification(data.error || 'Failed to resend OTP.');
-                    resendBtn.disabled = false;
-                    resendBtn.innerHTML = 'Resend code (<span id="resendCountdown">60</span>s)';
-                    return;
-                }
-
-                clearOtpInputs();
-                startCountdown(60);
-                showNotification(data.message || 'New OTP code sent!');
-
-            } catch (err) {
-                showNotification('Network error. Please try again.');
-                resendBtn.disabled = false;
-                resendBtn.innerHTML = 'Resend code (<span id="resendCountdown">60</span>s)';
+            if (data.error) {
+                showNotification(data.error);
+                return;
             }
+
+            clearOtpInputs();
+            startCountdown(60);
+            showNotification(data.message || 'New OTP code sent!');
         }
 
         function resetSigninFlow() {
@@ -1519,7 +1562,7 @@
             });
         }
 
-        // ========== SIGN UP FLOW (via Real API) ==========
+        // ========== SIGN UP FLOW ==========
         async function handleSignUp(e) {
             e.preventDefault();
             const name = document.getElementById('signupName').value.trim();
@@ -1537,11 +1580,10 @@
             }
 
             createBtn.disabled = true;
-            createBtn.innerHTML = '<span class="spinner"></span> Creating account...';
+            createBtn.innerHTML = '<span class="spinner"></span> Creating...';
 
-            // Call real API: POST /account/create
             try {
-                const response = await fetch(API_BASE_URL + '/account/create', {
+                const res = await fetch(API_BASE_URL + '/account/create', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1551,51 +1593,49 @@
                         email: email
                     })
                 });
-
-                const data = await response.json();
+                
+                const data = await res.json();
 
                 createBtn.disabled = false;
-                createBtn.textContent = 'Create Account & Get API Key';
+                createBtn.textContent = 'Create Account';
 
-                if (!response.ok || data.error) {
-                    showError(errorEl, data.error || 'Failed to create account.');
+                if (data.error) {
+                    showError(errorEl, typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
                     return;
                 }
 
-                // Success! Save user data including API key
+                // Success!
+                const apiKey = data.apiKey || API_KEY;
                 const userData = {
                     name: name,
                     email: email,
-                    apiKey: data.apiKey,
+                    apiKey: apiKey,
                     plan: data.plan || 'free',
-                    limit: data.limit || 1000,
                     createdAt: new Date().toISOString()
                 };
 
-                localStorage.setItem('auth2u_user_data', JSON.stringify(userData));
-                localStorage.setItem('auth2u_current_session', JSON.stringify(userData));
+                localStorage.setItem('auth2u_current_user', JSON.stringify(userData));
 
-                successEl.innerHTML = '<strong>Account created successfully!</strong><br><br>Your API Key:<br><code class="font-mono text-xs block mt-2 p-2 bg-black/30 rounded break-all">' + data.apiKey + '</code><br><br>You can now sign in using OTP.';
+                successEl.innerHTML = '<strong>Account created!</strong><br><br>Your API Key:<br><code class="font-mono text-xs block mt-2 p-2 bg-black/30 rounded break-all">' + apiKey + '</code><br><br>You can now sign in using OTP.';
                 successEl.classList.remove('hidden');
                 
                 updateUIForLoggedInUser(userData);
-                showNotification('Welcome aboard, ' + name + '! Your API key has been generated.');
+                showNotification('Account created! Welcome, ' + name + '!');
                 
                 setTimeout(function() {
                     closeLoginModal();
-                }, 2000);
+                }, 2500);
 
             } catch (err) {
                 createBtn.disabled = false;
-                createBtn.textContent = 'Create Account & Get API Key';
-                showError(errorEl, 'Network error. Please check your connection.');
-                console.error(err);
+                createBtn.textContent = 'Create Account';
+                showError(errorEl, 'Failed to connect to server. Please try again.');
             }
         }
 
         // ========== AUTH FUNCTIONS ==========
         function logout() {
-            localStorage.removeItem('auth2u_current_session');
+            localStorage.removeItem('auth2u_current_user');
             updateUIForLoggedOutUser();
             navigateTo('home');
             showNotification('You have been logged out.');
@@ -1616,7 +1656,7 @@
 
         // ========== PLAN SELECTION ==========
         function selectPlan(plan) {
-            const currentUser = JSON.parse(localStorage.getItem('auth2u_current_session') || 'null');
+            const currentUser = JSON.parse(localStorage.getItem('auth2u_current_user'));
             
             if (!currentUser) {
                 openLoginModal();
@@ -1645,7 +1685,7 @@
         window.addEventListener('scroll', function() {
             if (currentPage !== 'docs') return;
             
-            const sections = ['overview', 'create-account', 'send-otp', 'verify-otp', 'errors', 'flow'];
+            const sections = ['overview', 'authentication', 'account', 'otp-send', 'otp-verify', 'plans', 'errors', 'security', 'health'];
             
             for (var i = sections.length - 1; i >= 0; i--) {
                 var section = document.getElementById(sections[i]);
@@ -1680,7 +1720,7 @@
                 notification.style.transform = 'translateY(4px)';
                 notification.style.opacity = '0';
                 setTimeout(function() { notification.remove(); }, 300);
-            }, 3000);
+            }, 3500);
         }
 
         // ========== ERROR HELPER ==========
@@ -1748,13 +1788,11 @@
         function init() {
             setupOtpInputs();
             
-            // Check for existing session
-            var session = JSON.parse(localStorage.getItem('auth2u_current_session') || 'null');
-            if (session && session.apiKey) {
-                updateUIForLoggedInUser(session);
+            var currentUser = JSON.parse(localStorage.getItem('auth2u_current_user') || 'null');
+            if (currentUser) {
+                updateUIForLoggedInUser(currentUser);
             }
             
-            // Trigger initial reveals
             setTimeout(function() {
                 document.querySelectorAll('#page-home .reveal, #page-home .stagger').forEach(function(el) {
                     el.classList.add('active');
